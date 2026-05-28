@@ -92,9 +92,12 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
         <div class="me">
           <span class="uavatar" :style="{ background: me.base }">{{ (space.nickname || '나').charAt(0) }}</span>
           <div class="me-text">
-            <b>{{ space.nickname }}</b>
+            <b>{{ space.nickname }} <span v-if="space.isAdmin" class="admintag">ADMIN</span></b>
             <span>{{ me.name }}</span>
           </div>
+          <button v-if="space.isAdmin" class="iconbtn" title="설정" @click="router.push({ name: 'admin' })">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
           <button class="iconbtn" title="공간 나가기" @click="leave">
             <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
           </button>
@@ -115,10 +118,10 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
           </div>
         </div>
 
-        <div class="zone create-zone">
+        <div v-if="space.isAdmin" class="zone create-zone">
           <label class="zone-label" for="newtitle">
             <svg viewBox="0 0 24 24" class="ti"><path d="M12 5v14M5 12h14"/></svg>
-            새 모임방 만들기
+            새 모임방 만들기 <span class="admin-only">ADMIN</span>
           </label>
           <div class="zone-row">
             <input id="newtitle" v-model="newTitle" class="field"
@@ -207,8 +210,11 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
 .iconbtn svg, .rc-arrow, .rc-remove svg, .cc-x svg, .ti { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .iconbtn:hover { background: var(--brand-soft); color: var(--brand-ink); }
 
-/* 좌상단 액션 존 — 초대코드 입력이 가장 prominent */
-.topzone { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 22px; }
+/* 좌상단 액션 존 — 초대코드 입력이 가장 prominent. admin 일 때만 두 번째 칸(새 모임방)이 추가됨 */
+.topzone { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 22px; }
+.topzone:has(.create-zone) { grid-template-columns: 1.4fr 1fr; }
+.admin-only { display: inline-block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 9.5px; letter-spacing: .12em; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: var(--r-pill); margin-left: 4px; vertical-align: middle; }
+.admintag { display: inline-block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 9px; letter-spacing: .12em; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: var(--r-pill); margin-left: 4px; vertical-align: middle; }
 .zone { background: var(--surface); border-radius: var(--r-lg); padding: 16px 18px; box-shadow: var(--sh-sm); border: 1px solid var(--line-soft); }
 .zone.invite-zone { border: 2px solid var(--brand); background: linear-gradient(180deg, #FFFBF7 0%, var(--surface) 70%); box-shadow: var(--sh); }
 .zone-label { display: flex; align-items: center; gap: 7px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; }

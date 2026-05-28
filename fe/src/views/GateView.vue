@@ -37,12 +37,15 @@ async function submitSync() {
 
 // ── Step 2 (profile) ──
 const nickname = ref(space.nickname)
+const password = ref(space.password)
 const colorKey = ref<UserColorKey>(space.colorKey)
-const profileValid = computed(() => space.isValidNickname(nickname.value))
+const profileValid = computed(() =>
+  space.isValidNickname(nickname.value) && space.isValidPassword(password.value)
+)
 
 function submitProfile() {
   if (!profileValid.value) return
-  space.setProfile(nickname.value, colorKey.value)
+  space.setProfile(nickname.value, password.value, colorKey.value)
   router.push({ name: 'lobby' })
 }
 
@@ -98,6 +101,11 @@ function backToSync() {
         <div>
           <label class="label" for="nick">닉네임</label>
           <input id="nick" v-model="nickname" class="field" placeholder="이름을 적어주세요" maxlength="16" autocomplete="off" autofocus />
+        </div>
+
+        <div>
+          <label class="label" for="pw">비밀번호 <span class="hint">4자 이상</span></label>
+          <input id="pw" v-model="password" type="password" class="field" placeholder="••••" maxlength="64" autocomplete="new-password" />
         </div>
 
         <div>
