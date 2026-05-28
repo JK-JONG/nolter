@@ -1,0 +1,159 @@
+/* ============================================================
+   놀터 (Nolter) — 디자인 토큰 + 공통 컴포넌트
+   스타일: Soft UI Evolution · 톤: 파스텔 플레이풀(아기자기)
+   폰트: Nunito(디스플레이) + DM Sans(본문)
+   핵심: 사용자 = 색. 5색 팔레트가 어트리뷰션 언어의 중심.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Nunito:wght@700;800;900&display=swap');
+
+:root {
+  /* ── 따뜻한 중립(앱 크롬) ── */
+  --paper:      #FBF8F3;   /* 앱 배경: 따뜻한 크림 */
+  --paper-2:    #F3EDE3;   /* 인셋/홈 */
+  --surface:    #FFFFFF;   /* 카드 */
+  --surface-2:  #F6F1EA;   /* 살짝 들어간 면 */
+  --ink:        #2B2733;   /* 본문 텍스트(소프트 블랙) */
+  --ink-soft:   #6E6878;   /* 보조 텍스트 */
+  --ink-faint:  #A8A2B0;   /* 더 옅은 */
+  --line:       #ECE5DA;   /* 보더 */
+  --line-soft:  #F3EDE4;
+
+  /* ── 브랜드(코랄) — 사용자 5색과 겹치지 않게 ── */
+  --brand:      #FF7A59;
+  --brand-deep: #E85F3D;
+  --brand-ink:  #B8472A;   /* 옅은 배경 위 코랄 텍스트 */
+  --brand-soft: #FFE7DF;
+
+  /* ── 라운드(Soft UI = 넉넉하게) ── */
+  --r-xs: 8px;  --r-sm: 12px;  --r: 16px;  --r-lg: 22px;  --r-xl: 30px;  --r-pill: 999px;
+
+  /* ── 그림자(flat보다 부드럽고 neumorphism보다 또렷) ── */
+  --sh-sm: 0 1px 2px rgba(43,39,51,.05), 0 2px 6px rgba(43,39,51,.05);
+  --sh:    0 4px 14px rgba(43,39,51,.07), 0 2px 5px rgba(43,39,51,.05);
+  --sh-lg: 0 18px 44px rgba(43,39,51,.13), 0 6px 14px rgba(43,39,51,.07);
+  --sh-pop:0 10px 28px rgba(255,122,89,.28);
+
+  /* ── 모션 ── */
+  --ease: cubic-bezier(.34, 1.56, .64, 1);   /* 살짝 통통 튀는 */
+  --ease-out: cubic-bezier(.22,.61,.36,1);
+
+  /* ── 사용자 색(어트리뷰션 언어) ──
+     각 색: base(점·획·테두리) / soft(배경 틴트) / label(이름표·진한) / ink(틴트 위 텍스트) */
+  --u-mint-base: #2FCBA6;  --u-mint-soft: #DCF7EF;  --u-mint-label: #11A083;  --u-mint-ink: #0B7A62;
+  --u-sky-base:  #5AAEFF;  --u-sky-soft:  #E2EFFF;  --u-sky-label:  #2E84E0;  --u-sky-ink:  #1C61B4;
+  --u-pink-base: #FF8FC0;  --u-pink-soft: #FFE6F1;  --u-pink-label: #ED5795;  --u-pink-ink: #C2386F;
+  --u-sun-base:  #FFC53D;  --u-sun-soft:  #FFF2C9;  --u-sun-label:  #D99700;  --u-sun-ink:  #936700;
+  --u-lav-base:  #A98BFF;  --u-lav-soft:  #ECE4FF;  --u-lav-label:  #7B55E6;  --u-lav-ink:  #5938AE;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* 부드러운 파스텔 점박이 배경(아기자기 분위기) */
+.bg-dots {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(43,39,51,.05) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+/* ── 로고 ── */
+.logo {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 21px;
+  color: var(--ink); letter-spacing: -.02em;
+}
+.logo .mark {
+  width: 30px; height: 30px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--brand), #FFB199);
+  box-shadow: var(--sh-pop);
+  display: grid; place-items: center; color: #fff;
+  transform: rotate(-6deg);
+}
+
+/* ── 버튼 ── */
+.btn {
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px;
+  border: none; cursor: pointer; border-radius: var(--r-pill);
+  padding: 13px 22px; display: inline-flex; align-items: center; gap: 8px;
+  transition: transform .15s var(--ease), box-shadow .2s var(--ease-out), background .2s;
+}
+.btn:active { transform: scale(.96); }
+.btn-primary { background: var(--brand); color: #fff; box-shadow: var(--sh-pop); }
+.btn-primary:hover { background: var(--brand-deep); transform: translateY(-2px); }
+.btn-ghost { background: var(--surface); color: var(--ink); box-shadow: var(--sh-sm); border: 1.5px solid var(--line); }
+.btn-ghost:hover { transform: translateY(-2px); box-shadow: var(--sh); }
+.btn-soft { background: var(--brand-soft); color: var(--brand-ink); }
+
+/* ── 카드 ── */
+.card {
+  background: var(--surface); border-radius: var(--r-lg);
+  box-shadow: var(--sh); border: 1px solid var(--line-soft);
+}
+
+/* ── 입력 ── */
+.field {
+  width: 100%; font-family: 'DM Sans', sans-serif; font-size: 16px; color: var(--ink);
+  background: var(--surface-2); border: 1.5px solid var(--line);
+  border-radius: var(--r); padding: 14px 16px; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.field::placeholder { color: var(--ink-faint); }
+.field:focus { outline: none; border-color: var(--brand); background: #fff; box-shadow: 0 0 0 4px var(--brand-soft); }
+
+/* ── 사용자 점(접속자/아바타) ── */
+.udot {
+  width: 14px; height: 14px; border-radius: var(--r-pill);
+  border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(43,39,51,.08);
+  flex: none;
+}
+.uavatar {
+  width: 34px; height: 34px; border-radius: var(--r-pill);
+  display: grid; place-items: center; color: #fff;
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px;
+  border: 2.5px solid #fff; box-shadow: var(--sh-sm);
+}
+
+/* ── 라이브 커서(캐치마인드 핵심) ── */
+.cursor { position: absolute; z-index: 40; pointer-events: none; will-change: transform; }
+.cursor svg { display: block; filter: drop-shadow(0 2px 3px rgba(43,39,51,.25)); }
+.cursor .tag {
+  position: absolute; left: 16px; top: 16px; white-space: nowrap;
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 12.5px; color: #fff;
+  padding: 3px 10px; border-radius: var(--r-pill); box-shadow: var(--sh-sm);
+}
+.cursor .tag::after {
+  content: ''; position: absolute; left: -3px; top: -3px;
+  width: 8px; height: 8px; border-radius: 2px;
+}
+
+/* 떠다니는 듯한 미세 모션 */
+@keyframes float1 { 0%,100%{ transform: translate(0,0) } 50%{ transform: translate(10px,-8px) } }
+@keyframes float2 { 0%,100%{ transform: translate(0,0) } 50%{ transform: translate(-12px,6px) } }
+@keyframes float3 { 0%,100%{ transform: translate(0,0) } 50%{ transform: translate(7px,9px) } }
+@keyframes pulse  { 0%,100%{ box-shadow: 0 0 0 0 rgba(47,203,166,.5) } 50%{ box-shadow: 0 0 0 7px rgba(47,203,166,0) } }
+@keyframes pop-in { 0%{ transform: scale(.8); opacity:0 } 100%{ transform: scale(1); opacity:1 } }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 12.5px;
+  padding: 5px 11px 5px 8px; border-radius: var(--r-pill);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; }
+}

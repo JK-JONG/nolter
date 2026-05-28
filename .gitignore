@@ -1,0 +1,39 @@
+# 빌드 산출물
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+
+# 의존성
+node_modules/
+.pnp/
+.pnp.js
+
+# 런타임
+*.log
+logs/
+pids/
+*.pid
+*.seed
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 시크릿·로컬
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# 빌드 캐시
+*.tsbuildinfo
+fe/vite.config.d.ts
+fe/vite.config.js

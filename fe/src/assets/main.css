@@ -1,0 +1,103 @@
+/* ============================================================
+   놀터 (Nolter) — 글로벌 디자인 토큰 + 베이스
+   스타일: Soft UI Evolution · 톤: 파스텔 플레이풀 · 폰트: Nunito + DM Sans
+   핵심 규칙: 사람 = 색. 사용자 5색이 어트리뷰션 언어의 중심.
+   (시안 design/nolter.css 와 동일 토큰)
+   ============================================================ */
+
+:root {
+  /* 따뜻한 중립(앱 크롬) */
+  --paper: #FBF8F3;
+  --paper-2: #F3EDE3;
+  --surface: #FFFFFF;
+  --surface-2: #F6F1EA;
+  --ink: #2B2733;
+  --ink-soft: #6E6878;
+  --ink-faint: #A8A2B0;
+  --line: #ECE5DA;
+  --line-soft: #F3EDE4;
+
+  /* 브랜드(코랄) — 사용자 5색과 겹치지 않음 */
+  --brand: #FF7A59;
+  --brand-deep: #E85F3D;
+  --brand-ink: #B8472A;
+  --brand-soft: #FFE7DF;
+
+  /* 라운드 */
+  --r-xs: 8px; --r-sm: 12px; --r: 16px; --r-lg: 22px; --r-xl: 30px; --r-pill: 999px;
+
+  /* 그림자 */
+  --sh-sm: 0 1px 2px rgba(43,39,51,.05), 0 2px 6px rgba(43,39,51,.05);
+  --sh: 0 4px 14px rgba(43,39,51,.07), 0 2px 5px rgba(43,39,51,.05);
+  --sh-lg: 0 18px 44px rgba(43,39,51,.13), 0 6px 14px rgba(43,39,51,.07);
+  --sh-pop: 0 10px 28px rgba(255,122,89,.28);
+
+  /* 모션 */
+  --ease: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-out: cubic-bezier(.22,.61,.36,1);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; }
+body {
+  margin: 0;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+button { font-family: inherit; }
+
+.bg-dots {
+  background-image: radial-gradient(circle at 1px 1px, rgba(43,39,51,.05) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+/* 로고 */
+.logo { display: inline-flex; align-items: center; gap: 9px; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 21px; color: var(--ink); letter-spacing: -.02em; }
+.logo .mark { width: 30px; height: 30px; border-radius: 10px; background: linear-gradient(135deg, var(--brand), #FFB199); box-shadow: var(--sh-pop); display: grid; place-items: center; color: #fff; transform: rotate(-6deg); }
+
+/* 버튼 */
+.btn { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; border: none; cursor: pointer; border-radius: var(--r-pill); padding: 13px 22px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: transform .15s var(--ease), box-shadow .2s var(--ease-out), background .2s; }
+.btn:active { transform: scale(.96); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--brand); color: #fff; box-shadow: var(--sh-pop); }
+.btn-primary:not(:disabled):hover { background: var(--brand-deep); transform: translateY(-2px); }
+.btn-ghost { background: var(--surface); color: var(--ink); box-shadow: var(--sh-sm); border: 1.5px solid var(--line); }
+.btn-ghost:hover { transform: translateY(-2px); box-shadow: var(--sh); }
+.btn-soft { background: var(--brand-soft); color: var(--brand-ink); }
+
+/* 카드 */
+.card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh); border: 1px solid var(--line-soft); }
+
+/* 입력 */
+.field { width: 100%; font-family: 'DM Sans', sans-serif; font-size: 16px; color: var(--ink); background: var(--surface-2); border: 1.5px solid var(--line); border-radius: var(--r); padding: 14px 16px; transition: border-color .15s, box-shadow .15s, background .15s; }
+.field::placeholder { color: var(--ink-faint); }
+.field:focus { outline: none; border-color: var(--brand); background: #fff; box-shadow: 0 0 0 4px var(--brand-soft); }
+
+/* 사용자 점 / 아바타 */
+.udot { width: 14px; height: 14px; border-radius: var(--r-pill); border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(43,39,51,.08); flex: none; }
+.uavatar { width: 34px; height: 34px; border-radius: var(--r-pill); display: grid; place-items: center; color: #fff; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; border: 2.5px solid #fff; box-shadow: var(--sh-sm); flex: none; }
+
+.chip { display: inline-flex; align-items: center; gap: 7px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 12.5px; padding: 5px 11px; border-radius: var(--r-pill); }
+
+/* 접근성: 포커스 링 */
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+
+/* 모션 */
+@keyframes pop-in { 0% { transform: scale(.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes blink { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}

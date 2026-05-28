@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>놀터 · 방 입장</title>
+<link rel="stylesheet" href="nolter.css">
+<style>
+  body { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+  .shell {
+    width: 100%; max-width: 920px; display: grid; grid-template-columns: 1.05fr .95fr;
+    background: var(--surface); border-radius: var(--r-xl); overflow: hidden;
+    box-shadow: var(--sh-lg); border: 1px solid var(--line-soft);
+  }
+
+  /* 왼쪽: 환영 + 떠다니는 커서 */
+  .hero {
+    position: relative; padding: 44px 40px; overflow: hidden;
+    background:
+      radial-gradient(120% 120% at 0% 0%, var(--u-mint-soft) 0%, transparent 55%),
+      radial-gradient(120% 120% at 100% 100%, var(--brand-soft) 0%, transparent 50%),
+      var(--paper);
+  }
+  .hero .logo { margin-bottom: 28px; }
+  .hero h1 { font-size: 34px; line-height: 1.12; color: var(--ink); margin-bottom: 14px; }
+  .hero h1 em { font-style: normal; color: var(--brand-ink); }
+  .hero p { font-size: 15.5px; color: var(--ink-soft); line-height: 1.6; max-width: 340px; }
+  .hero .floaty { position: absolute; pointer-events: none; }
+
+  .stickerrow { display:flex; gap:10px; margin-top:30px; flex-wrap:wrap; }
+  .sticker { font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; padding:8px 13px; border-radius:var(--r-pill); box-shadow:var(--sh-sm); }
+
+  /* 오른쪽: 폼 */
+  .panel { padding: 44px 40px; display: flex; flex-direction: column; gap: 22px; }
+  .seg { display: flex; gap: 6px; background: var(--surface-2); padding: 5px; border-radius: var(--r-pill); }
+  .seg button { flex: 1; border: none; background: transparent; cursor: pointer; padding: 10px; border-radius: var(--r-pill);
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; color: var(--ink-soft); transition: all .18s var(--ease); }
+  .seg button.on { background: var(--surface); color: var(--ink); box-shadow: var(--sh-sm); }
+
+  .label { font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; color:var(--ink-soft); margin-bottom:9px; display:block; }
+
+  .code-field { letter-spacing:.18em; font-family:'Nunito',sans-serif; font-weight:800; font-size:18px; text-align:center; }
+
+  /* 색 고르기 */
+  .colors { display:flex; gap:12px; }
+  .colorbtn { width:48px; height:48px; border-radius:var(--r-pill); border:3px solid #fff; cursor:pointer; position:relative;
+    box-shadow: 0 0 0 1.5px var(--line), var(--sh-sm); transition: transform .15s var(--ease); }
+  .colorbtn:hover { transform: scale(1.1); }
+  .colorbtn.sel { box-shadow: 0 0 0 3px var(--ink), var(--sh); transform: scale(1.08); }
+  .colorbtn.sel::after { content:'✓'; position:absolute; inset:0; display:grid; place-items:center; color:#fff; font-weight:900; font-size:18px; }
+
+  .preview { display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--surface-2); border-radius:var(--r); }
+  .footnote { font-size:12.5px; color:var(--ink-faint); text-align:center; line-height:1.5; }
+  .footnote a { color: var(--brand-ink); text-decoration: none; font-weight:700; }
+
+  @media (max-width: 760px) {
+    .shell { grid-template-columns: 1fr; max-width: 460px; }
+    .hero { padding: 34px 28px; }
+    .hero h1 { font-size: 28px; }
+    .panel { padding: 30px 28px; }
+  }
+</style>
+</head>
+<body class="bg-dots">
+  <div class="shell">
+
+    <!-- 왼쪽 환영 -->
+    <div class="hero">
+      <div class="logo"><span class="mark">✦</span> 놀터</div>
+      <h1>친구들과<br>같이 그리는<br><em>놀이터.</em></h1>
+      <p>방 코드 하나면 끝. 로그인 없이 들어와 함께 그리고, 메모를 붙이고, 일정을 맞춰요.</p>
+      <div class="stickerrow">
+        <span class="sticker" style="background:var(--u-mint-soft);color:var(--u-mint-ink)">✏️ 실시간 드로잉</span>
+        <span class="sticker" style="background:var(--u-pink-soft);color:var(--u-pink-ink)">📝 스티키 메모</span>
+        <span class="sticker" style="background:var(--u-sky-soft);color:var(--u-sky-ink)">📅 공유 캘린더</span>
+      </div>
+
+      <!-- 떠다니는 커서로 분위기 -->
+      <div class="cursor floaty" style="right:34px; top:30px; animation: float1 6s ease-in-out infinite">
+        <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-lav-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-lav-label)">서연</span>
+      </div>
+      <div class="cursor floaty" style="right:120px; bottom:38px; animation: float3 5.5s ease-in-out infinite">
+        <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-sun-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-sun-label)">하늘</span>
+      </div>
+    </div>
+
+    <!-- 오른쪽 폼 -->
+    <div class="panel">
+      <div class="seg">
+        <button class="on">코드로 입장</button>
+        <button>새 방 만들기</button>
+      </div>
+
+      <div>
+        <label class="label">방 코드</label>
+        <input class="field code-field" value="AB7K-9QXM-2F" aria-label="방 코드">
+      </div>
+
+      <div>
+        <label class="label">닉네임</label>
+        <input class="field" placeholder="이름을 적어주세요" value="올라프" aria-label="닉네임">
+      </div>
+
+      <div>
+        <label class="label">내 색 고르기</label>
+        <div class="colors">
+          <button class="colorbtn sel" style="background:var(--u-mint-base)" aria-label="민트" aria-pressed="true"></button>
+          <button class="colorbtn" style="background:var(--u-sky-base)" aria-label="하늘"></button>
+          <button class="colorbtn" style="background:var(--u-pink-base)" aria-label="핑크"></button>
+          <button class="colorbtn" style="background:var(--u-sun-base)" aria-label="노랑"></button>
+          <button class="colorbtn" style="background:var(--u-lav-base)" aria-label="라벤더"></button>
+        </div>
+      </div>
+
+      <div class="preview">
+        <span class="uavatar" style="background:var(--u-mint-base)">올</span>
+        <div>
+          <div style="font-family:'Nunito';font-weight:800;font-size:15px">올라프</div>
+          <div style="font-size:12.5px;color:var(--ink-soft)">민트색으로 입장해요</div>
+        </div>
+        <span class="chip" style="margin-left:auto;background:var(--u-mint-label);color:#fff">미리보기</span>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:16px;padding:15px">놀터 입장하기 →</button>
+      <p class="footnote">계정도, 비밀번호도 필요 없어요.<br>방 코드를 아는 친구만 들어올 수 있어요. · <a href="index.html">시안 처음으로</a></p>
+    </div>
+
+  </div>
+</body>
+</html>

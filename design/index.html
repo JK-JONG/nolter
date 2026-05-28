@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>놀터 · 디자인 시안</title>
+<link rel="stylesheet" href="nolter.css">
+<style>
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 48px 24px 96px; }
+  header.top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 40px; flex-wrap: wrap; gap: 16px; }
+  .lead { font-size: 17px; color: var(--ink-soft); max-width: 620px; line-height: 1.6; }
+  .lead b { color: var(--ink); }
+  section { margin-top: 52px; }
+  .eyebrow { font-family:'Nunito',sans-serif; font-weight:900; font-size:13px; letter-spacing:.08em; text-transform:uppercase; color: var(--brand-ink); margin-bottom: 14px; }
+  h2 { font-size: 26px; margin-bottom: 8px; }
+  .sub { color: var(--ink-soft); margin-bottom: 24px; }
+
+  /* 사용자 색 카드 */
+  .users { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; }
+  .ucard { border-radius: var(--r-lg); padding: 18px; box-shadow: var(--sh); border:1px solid var(--line-soft); }
+  .uhead { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .uname { font-family:'Nunito',sans-serif; font-weight:800; font-size:16px; }
+  .uchiprow { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .swatch { height: 40px; border-radius: var(--r-sm); flex:1; box-shadow: inset 0 0 0 1px rgba(0,0,0,.05); }
+  .hexrow { display:flex; justify-content:space-between; font-size:12px; color:var(--ink-soft); margin-top:8px; font-variant-numeric: tabular-nums; }
+
+  /* 중립/브랜드 */
+  .tokens { display:grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap:12px; }
+  .tk { border-radius: var(--r); overflow:hidden; box-shadow: var(--sh-sm); border:1px solid var(--line-soft); background:#fff; }
+  .tk .sw { height:64px; }
+  .tk .lb { padding:10px 12px; font-size:12px; }
+  .tk .lb b { display:block; font-family:'Nunito',sans-serif; font-size:13px; color:var(--ink); }
+  .tk .lb span { color:var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+  /* 타이포 */
+  .type-row { display:flex; align-items:baseline; gap:18px; padding:14px 0; border-bottom:1px dashed var(--line); flex-wrap:wrap; }
+  .type-row .meta { font-size:12px; color:var(--ink-faint); width:130px; flex:none; }
+
+  /* 스크린 링크 */
+  .screens { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+  .screen-link { display:block; text-decoration:none; color:inherit; border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--sh); border:1px solid var(--line-soft); transition: transform .18s var(--ease), box-shadow .2s; background:#fff; }
+  .screen-link:hover { transform: translateY(-4px); box-shadow: var(--sh-lg); }
+  .screen-link .thumb { height:160px; display:grid; place-items:center; font-family:'Nunito',sans-serif; font-weight:900; font-size:20px; }
+  .screen-link .cap { padding:16px 18px; }
+  .screen-link .cap b { font-family:'Nunito',sans-serif; font-size:16px; }
+  .screen-link .cap p { margin:4px 0 0; color:var(--ink-soft); font-size:13px; }
+  @media (max-width:680px){ .screens, .type-row .meta { grid-template-columns: 1fr; } }
+
+  .demo-cursor { position:relative; height:120px; background:var(--surface-2); border-radius:var(--r-lg); border:1px dashed var(--line); overflow:hidden; }
+</style>
+</head>
+<body class="bg-dots">
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo"><span class="mark">✦</span> 놀터 <span style="font-family:'DM Sans';font-weight:500;font-size:14px;color:var(--ink-faint)">Nolter</span></div>
+    <span class="chip" style="background:var(--brand-soft);color:var(--brand-ink)">파스텔 플레이풀 · 시안 v1</span>
+  </header>
+
+  <p class="lead"><b>친구끼리 방 코드 하나로 모여 같이 그리고·메모하고·일정 잡는 실시간 보드.</b> 이 시안의 단 하나의 규칙 — <b>사람 = 색.</b> 커서·획·스티키·접속자 점·캘린더 이벤트가 전부 그 사람의 색으로 묶여, 캐치마인드처럼 “지금 누가 무엇을 하는지”가 한눈에 보입니다.</p>
+
+  <!-- 사용자 색 -->
+  <section>
+    <div class="eyebrow">어트리뷰션 언어</div>
+    <h2>사용자 5색</h2>
+    <p class="sub">방에 들어올 때 색 하나를 고릅니다. 그때부터 그 사람의 모든 흔적이 이 색을 입습니다.</p>
+    <div class="users">
+      <div class="ucard" style="background:var(--u-mint-soft)">
+        <div class="uhead"><span class="uavatar" style="background:var(--u-mint-base)">올</span><span class="uname" style="color:var(--u-mint-ink)">민트</span></div>
+        <div class="uchiprow"><span class="chip" style="background:var(--u-mint-label);color:#fff">올라프</span><span class="udot" style="background:var(--u-mint-base)"></span></div>
+        <div class="hexrow"><span>#2FCBA6</span><span>label #11A083</span></div>
+      </div>
+      <div class="ucard" style="background:var(--u-sky-soft)">
+        <div class="uhead"><span class="uavatar" style="background:var(--u-sky-base)">민</span><span class="uname" style="color:var(--u-sky-ink)">하늘</span></div>
+        <div class="uchiprow"><span class="chip" style="background:var(--u-sky-label);color:#fff">민호</span><span class="udot" style="background:var(--u-sky-base)"></span></div>
+        <div class="hexrow"><span>#5AAEFF</span><span>label #2E84E0</span></div>
+      </div>
+      <div class="ucard" style="background:var(--u-pink-soft)">
+        <div class="uhead"><span class="uavatar" style="background:var(--u-pink-base)">지</span><span class="uname" style="color:var(--u-pink-ink)">핑크</span></div>
+        <div class="uchiprow"><span class="chip" style="background:var(--u-pink-label);color:#fff">지수</span><span class="udot" style="background:var(--u-pink-base)"></span></div>
+        <div class="hexrow"><span>#FF8FC0</span><span>label #ED5795</span></div>
+      </div>
+      <div class="ucard" style="background:var(--u-sun-soft)">
+        <div class="uhead"><span class="uavatar" style="background:var(--u-sun-base)">하</span><span class="uname" style="color:var(--u-sun-ink)">노랑</span></div>
+        <div class="uchiprow"><span class="chip" style="background:var(--u-sun-label);color:#fff">하늘</span><span class="udot" style="background:var(--u-sun-base)"></span></div>
+        <div class="hexrow"><span>#FFC53D</span><span>label #D99700</span></div>
+      </div>
+      <div class="ucard" style="background:var(--u-lav-soft)">
+        <div class="uhead"><span class="uavatar" style="background:var(--u-lav-base)">서</span><span class="uname" style="color:var(--u-lav-ink)">라벤더</span></div>
+        <div class="uchiprow"><span class="chip" style="background:var(--u-lav-label);color:#fff">서연</span><span class="udot" style="background:var(--u-lav-base)"></span></div>
+        <div class="hexrow"><span>#A98BFF</span><span>label #7B55E6</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 라이브 커서 데모 -->
+  <section>
+    <div class="eyebrow">핵심 인터랙션</div>
+    <h2>이름표 달린 라이브 커서</h2>
+    <p class="sub">커서·그리는 획 옆에 항상 닉네임이 그 사람 색으로 따라붙습니다.</p>
+    <div class="demo-cursor">
+      <div class="cursor" style="left:12%; top:20%; animation: float1 6s ease-in-out infinite">
+        <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-mint-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-mint-label)">올라프</span>
+      </div>
+      <div class="cursor" style="left:50%; top:48%; animation: float2 7s ease-in-out infinite">
+        <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-sky-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-sky-label)">민호 · 그리는 중</span>
+      </div>
+      <div class="cursor" style="left:74%; top:22%; animation: float3 5.5s ease-in-out infinite">
+        <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-pink-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-pink-label)">지수</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 중립 + 브랜드 -->
+  <section>
+    <div class="eyebrow">앱 크롬</div>
+    <h2>중립 + 브랜드</h2>
+    <p class="sub">크롬은 따뜻한 크림으로 중립을 유지해 사용자 색이 튀게 합니다. 브랜드 코랄은 사용자 5색과 겹치지 않습니다.</p>
+    <div class="tokens">
+      <div class="tk"><div class="sw" style="background:var(--paper)"></div><div class="lb"><b>paper</b><span>#FBF8F3</span></div></div>
+      <div class="tk"><div class="sw" style="background:var(--surface-2)"></div><div class="lb"><b>surface-2</b><span>#F6F1EA</span></div></div>
+      <div class="tk"><div class="sw" style="background:var(--ink)"></div><div class="lb"><b style="color:var(--ink)">ink</b><span>#2B2733</span></div></div>
+      <div class="tk"><div class="sw" style="background:var(--ink-soft)"></div><div class="lb"><b>ink-soft</b><span>#6E6878</span></div></div>
+      <div class="tk"><div class="sw" style="background:var(--brand)"></div><div class="lb"><b>brand</b><span>#FF7A59</span></div></div>
+      <div class="tk"><div class="sw" style="background:var(--brand-soft)"></div><div class="lb"><b>brand-soft</b><span>#FFE7DF</span></div></div>
+    </div>
+  </section>
+
+  <!-- 타이포 -->
+  <section>
+    <div class="eyebrow">타이포그래피</div>
+    <h2>Nunito + DM Sans</h2>
+    <p class="sub">둥글둥글한 Nunito로 디스플레이, 차분한 DM Sans로 본문. Inter 회피.</p>
+    <div>
+      <div class="type-row"><span class="meta">Nunito 900 · 34px</span><span class="display" style="font-size:34px">같이 그리는 놀이터, 놀터</span></div>
+      <div class="type-row"><span class="meta">Nunito 800 · 22px</span><span class="display" style="font-size:22px;font-weight:800">민호님이 그리는 중이에요</span></div>
+      <div class="type-row"><span class="meta">DM Sans 400 · 16px</span><span style="font-size:16px;color:var(--ink-soft)">방 코드를 받은 친구들이 로그인 없이 들어와 함께 그리고 메모를 남깁니다.</span></div>
+      <div class="type-row"><span class="meta">DM Sans 700 · 13px</span><span style="font-size:13px;font-weight:700">접속자 4명 · 토요일 모임</span></div>
+    </div>
+  </section>
+
+  <!-- 화면 -->
+  <section>
+    <div class="eyebrow">화면 목업</div>
+    <h2>두 화면</h2>
+    <p class="sub">실제 동작은 아니지만 톤·레이아웃·어트리뷰션 표현을 그대로 보여줍니다.</p>
+    <div class="screens">
+      <a class="screen-link" href="screen-entry.html">
+        <div class="thumb" style="background:linear-gradient(135deg,var(--u-mint-soft),var(--brand-soft));color:var(--brand-ink)">방 입장 게이트</div>
+        <div class="cap"><b>1 · 방 입장</b><p>새 방 만들기 / 코드로 입장 · 닉네임 · 색 고르기</p></div>
+      </a>
+      <a class="screen-link" href="screen-canvas.html">
+        <div class="thumb" style="background:linear-gradient(135deg,var(--u-sky-soft),var(--u-lav-soft));color:var(--u-sky-ink)">실시간 캔버스</div>
+        <div class="cap"><b>2 · 캔버스</b><p>드로잉 + 스티키 + 접속자 + 라이브 커서 · 메모/캘린더 탭</p></div>
+      </a>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

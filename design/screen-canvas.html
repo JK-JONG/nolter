@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>놀터 · 실시간 캔버스</title>
+<link rel="stylesheet" href="nolter.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .app { display: flex; flex-direction: column; height: 100dvh; }
+
+  /* ── 상단 바 ── */
+  .topbar { display: flex; align-items: center; gap: 16px; padding: 12px 18px;
+    background: var(--surface); border-bottom: 1px solid var(--line); z-index: 30; flex: none; }
+  .room { display:flex; flex-direction:column; line-height:1.1; }
+  .room b { font-family:'Nunito',sans-serif; font-weight:800; font-size:15px; }
+  .room span { font-size:11.5px; color:var(--ink-faint); display:flex; align-items:center; gap:5px; }
+  .room .codepill { font-variant-numeric: tabular-nums; background:var(--surface-2); padding:1px 7px; border-radius:var(--r-pill); font-weight:700; color:var(--ink-soft); }
+
+  /* 탭 */
+  .tabs { display:flex; gap:4px; margin: 0 auto; background:var(--surface-2); padding:4px; border-radius:var(--r-pill); }
+  .tabs button { border:none; background:transparent; cursor:pointer; padding:8px 18px; border-radius:var(--r-pill);
+    font-family:'Nunito',sans-serif; font-weight:800; font-size:13.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; transition:all .18s var(--ease); }
+  .tabs button.on { background:var(--surface); color:var(--ink); box-shadow:var(--sh-sm); }
+
+  /* 접속자 스택 */
+  .presence { display:flex; align-items:center; }
+  .presence .uavatar { margin-left:-9px; transition: transform .15s var(--ease); cursor:default; position:relative; }
+  .presence .uavatar:first-child { margin-left:0; }
+  .presence .uavatar:hover { transform: translateY(-3px) scale(1.05); z-index:5; }
+  .presence .uavatar.drawing::after { content:''; position:absolute; inset:-3px; border-radius:var(--r-pill);
+    border:2.5px solid var(--u-sky-base); animation: pulse-ring 1.3s ease-out infinite; }
+  @keyframes pulse-ring { 0%{ box-shadow:0 0 0 0 rgba(90,174,255,.5) } 100%{ box-shadow:0 0 0 8px rgba(90,174,255,0) } }
+  .presence .more { width:34px; height:34px; margin-left:-9px; border-radius:var(--r-pill); background:var(--surface-2);
+    border:2.5px solid #fff; display:grid; place-items:center; font-family:'Nunito';font-weight:800; font-size:12px; color:var(--ink-soft); }
+
+  /* ── 본문 ── */
+  .body { flex:1; display:flex; min-height:0; position:relative; }
+
+  /* 도구 독 */
+  .dock { width:60px; flex:none; background:var(--surface); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 0; z-index:20; }
+  .tool { width:42px; height:42px; border-radius:var(--r-sm); border:none; background:transparent; cursor:pointer;
+    display:grid; place-items:center; color:var(--ink-soft); transition:all .15s var(--ease); font-size:19px; }
+  .tool:hover { background:var(--surface-2); transform: translateY(-1px); }
+  .tool.on { background:var(--ink); color:#fff; box-shadow:var(--sh-sm); }
+  .dock .sep { width:26px; height:1px; background:var(--line); margin:6px 0; }
+  .dock .mycolor { width:30px; height:30px; border-radius:var(--r-pill); background:var(--u-mint-base);
+    border:3px solid #fff; box-shadow:0 0 0 1.5px var(--line), var(--sh-sm); margin-top:6px; }
+
+  /* 캔버스 */
+  .canvas { flex:1; position:relative; overflow:hidden;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(43,39,51,.045) 1px, transparent 0) 0 0 / 26px 26px,
+      var(--paper); }
+
+  /* 스티키 노트 */
+  .sticky { position:absolute; width:172px; padding:14px 15px 16px; border-radius:14px;
+    box-shadow: var(--sh); font-size:14px; line-height:1.45; transform: rotate(-2deg);
+    border:1px solid rgba(0,0,0,.04); }
+  .sticky.r2 { transform: rotate(2.5deg); }
+  .sticky .by { display:flex; align-items:center; gap:6px; margin-top:11px; font-family:'Nunito';font-weight:800; font-size:11.5px; }
+  .sticky .by .udot { width:11px; height:11px; }
+  .sticky .editing { margin-top:10px; font-family:'Nunito'; font-weight:800; font-size:11px;
+    display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:var(--r-pill); }
+  .blink { width:2px; height:14px; display:inline-block; vertical-align:-2px; margin-left:1px; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50%{ opacity:0 } }
+
+  /* 그려진 획 라벨 */
+  .stroke-label { position:absolute; font-family:'Nunito';font-weight:800; font-size:11px; color:#fff;
+    padding:2px 8px; border-radius:var(--r-pill); box-shadow:var(--sh-sm); }
+
+  /* 라이브 상태 배너(좌하단) */
+  .livebar { position:absolute; left:18px; bottom:18px; z-index:25; display:flex; gap:10px; align-items:center; }
+  .live-pill { display:flex; align-items:center; gap:9px; background:var(--surface); padding:9px 15px 9px 11px;
+    border-radius:var(--r-pill); box-shadow:var(--sh); border:1px solid var(--line-soft); }
+  .live-pill .uavatar { width:26px; height:26px; font-size:11px; }
+  .live-pill b { font-family:'Nunito';font-weight:800; font-size:13px; }
+  .dots span { display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--u-sky-base); margin-left:2px; animation: jump 1s infinite; }
+  .dots span:nth-child(2){ animation-delay:.15s } .dots span:nth-child(3){ animation-delay:.3s }
+  @keyframes jump { 0%,60%,100%{ transform: translateY(0); opacity:.4 } 30%{ transform: translateY(-5px); opacity:1 } }
+
+  /* 줌 컨트롤(우하단) */
+  .zoom { position:absolute; right:18px; bottom:18px; z-index:25; display:flex; align-items:center; gap:2px;
+    background:var(--surface); padding:5px; border-radius:var(--r-pill); box-shadow:var(--sh); border:1px solid var(--line-soft); }
+  .zoom button { width:32px; height:32px; border:none; background:transparent; border-radius:var(--r-pill); cursor:pointer; font-size:17px; color:var(--ink-soft); }
+  .zoom button:hover { background:var(--surface-2); }
+  .zoom span { font-family:'Nunito';font-weight:800; font-size:12.5px; padding:0 8px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+
+  .invite { margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 상단 바 -->
+  <header class="topbar">
+    <div class="logo" style="font-size:18px"><span class="mark" style="width:26px;height:26px;font-size:13px">✦</span> 놀터</div>
+    <div class="room">
+      <b>주말 여행 계획 🏖️</b>
+      <span>방 코드 <span class="codepill">AB7K-9QXM-2F</span></span>
+    </div>
+
+    <nav class="tabs">
+      <button class="on">✏️ 캔버스</button>
+      <button>📝 메모</button>
+      <button>📅 캘린더</button>
+    </nav>
+
+    <div class="presence">
+      <span class="uavatar" style="background:var(--u-mint-base)" title="올라프(나)">올</span>
+      <span class="uavatar drawing" style="background:var(--u-sky-base)" title="민호 · 그리는 중">민</span>
+      <span class="uavatar" style="background:var(--u-pink-base)" title="지수">지</span>
+      <span class="uavatar" style="background:var(--u-lav-base)" title="서연">서</span>
+      <span class="more">+2</span>
+    </div>
+
+    <button class="btn btn-soft invite">🔗 초대</button>
+  </header>
+
+  <!-- 본문 -->
+  <div class="body">
+
+    <!-- 도구 독 -->
+    <aside class="dock">
+      <button class="tool on" title="펜">✏️</button>
+      <button class="tool" title="형광펜">🖊️</button>
+      <button class="tool" title="스티키 노트">🗒️</button>
+      <button class="tool" title="도형">▢</button>
+      <button class="tool" title="텍스트">T</button>
+      <button class="tool" title="지우개">⌫</button>
+      <div class="sep"></div>
+      <button class="tool" title="손바닥(이동)">✋</button>
+      <div class="mycolor" title="내 색 · 민트"></div>
+    </aside>
+
+    <!-- 캔버스 -->
+    <main class="canvas">
+
+      <!-- 올라프(민트)가 그린 해 -->
+      <svg style="position:absolute; left:90px; top:80px" width="150" height="150" viewBox="0 0 150 150" fill="none">
+        <circle cx="62" cy="62" r="30" stroke="var(--u-mint-base)" stroke-width="5" stroke-linecap="round"/>
+        <g stroke="var(--u-mint-base)" stroke-width="5" stroke-linecap="round">
+          <path d="M62 18 V4"/><path d="M62 120 V106"/><path d="M18 62 H4"/><path d="M120 62 H106"/>
+          <path d="M31 31 L21 21"/><path d="M93 31 L103 21"/><path d="M31 93 L21 103"/><path d="M93 93 L103 103"/>
+        </g>
+      </svg>
+      <span class="stroke-label" style="left:96px; top:66px; background:var(--u-mint-label)">올라프</span>
+
+      <!-- 민호(하늘)가 지금 그리는 중인 물결 -->
+      <svg style="position:absolute; left:330px; top:150px" width="260" height="120" viewBox="0 0 260 120" fill="none">
+        <path d="M6 70 Q40 20 74 70 T142 70 T210 70" stroke="var(--u-sky-base)" stroke-width="6" stroke-linecap="round"
+          stroke-dasharray="600" stroke-dashoffset="120" style="animation: draw 2.4s var(--ease-out) infinite alternate"/>
+      </svg>
+      <style>@keyframes draw { from{ stroke-dashoffset:600 } to{ stroke-dashoffset:80 } }</style>
+
+      <!-- 지수(핑크) 스티키 -->
+      <div class="sticky" style="left:640px; top:90px; background:var(--u-pink-soft)">
+        <div style="color:var(--u-pink-ink); font-weight:500">토요일 저녁 6시에 모이는 거 어때? 🍕</div>
+        <div class="by" style="color:var(--u-pink-ink)"><span class="udot" style="background:var(--u-pink-base)"></span> 지수</div>
+      </div>
+
+      <!-- 서연(라벤더) 스티키 — 편집 중 -->
+      <div class="sticky r2" style="left:700px; top:280px; background:var(--u-lav-soft); box-shadow: var(--sh-lg), 0 0 0 2.5px var(--u-lav-base)">
+        <div style="color:var(--u-lav-ink); font-weight:500">숙소는 내가 알아볼게<span class="blink" style="background:var(--u-lav-ink)"></span></div>
+        <span class="editing" style="background:var(--u-lav-base); color:#fff">✏️ 서연 편집 중</span>
+      </div>
+
+      <!-- 노랑(하늘이) 스티키 -->
+      <div class="sticky" style="left:420px; top:330px; background:var(--u-sun-soft); transform:rotate(1.5deg)">
+        <div style="color:var(--u-sun-ink); font-weight:500">차는 2대 필요할 듯! 🚗</div>
+        <div class="by" style="color:var(--u-sun-ink)"><span class="udot" style="background:var(--u-sun-base)"></span> 하늘</div>
+      </div>
+
+      <!-- 라이브 커서들 -->
+      <div class="cursor" style="left:470px; top:208px; animation: float2 4s ease-in-out infinite">
+        <svg width="22" height="22" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-sky-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-sky-label)">민호 · 그리는 중</span>
+      </div>
+      <div class="cursor" style="left:760px; top:250px; animation: float1 5s ease-in-out infinite">
+        <svg width="22" height="22" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-lav-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-lav-label)">서연</span>
+      </div>
+      <div class="cursor" style="left:300px; top:380px; animation: float3 6s ease-in-out infinite">
+        <svg width="22" height="22" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L11 17 L8 11 L14 11 Z" fill="var(--u-pink-base)" stroke="#fff" stroke-width="1.3"/></svg>
+        <span class="tag" style="background:var(--u-pink-label)">지수</span>
+      </div>
+
+      <!-- 라이브 상태 배너 -->
+      <div class="livebar">
+        <div class="live-pill">
+          <span class="uavatar" style="background:var(--u-sky-base)">민</span>
+          <b style="color:var(--u-sky-ink)">민호님이 그리는 중</b>
+          <span class="dots"><span></span><span></span><span></span></span>
+        </div>
+      </div>
+
+      <!-- 줌 -->
+      <div class="zoom">
+        <button aria-label="축소">−</button><span>100%</span><button aria-label="확대">+</button>
+      </div>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>
