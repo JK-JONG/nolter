@@ -11,9 +11,9 @@ const space = useSpace()
 // 이미 공간+프로필이 준비된 사용자는 게이트를 건너뛰고 바로 로비로.
 if (space.ready) router.replace({ name: 'lobby' })
 
-// 2단계 게이트:
-//  1) sync    — 동기화 코드 입력(또는 "새로 시작"). 코드 미보유면 여기서 시작.
-//  2) profile — 닉네임 + 색상.
+// 2단계 게이트 — 동기화 코드 = 사이트 입장권.
+//  1) sync    — 코드를 모르면 진입 자체가 불가. 자체 발급 옵션 없음.
+//  2) profile — 코드 통과 후에만 닉네임/색상.
 const step = ref<'sync' | 'profile'>(space.hasSync ? 'profile' : 'sync')
 
 // ── Step 1 (sync) ──
@@ -35,11 +35,6 @@ async function submitSync() {
   } finally { busy.value = false }
 }
 
-function startNew() {
-  space.startNew()
-  step.value = 'profile'
-}
-
 // ── Step 2 (profile) ──
 const nickname = ref(space.nickname)
 const colorKey = ref<UserColorKey>(space.colorKey)
@@ -52,10 +47,7 @@ function submitProfile() {
 }
 
 function backToSync() {
-  // 새로 시작으로 발급된 코드라면 폐기하고 다시 입력 단계로.
-  space.reset()
   step.value = 'sync'
-  syncInput.value = ''
 }
 </script>
 
@@ -78,7 +70,7 @@ function backToSync() {
       <form v-if="step === 'sync'" class="panel" @submit.prevent="submitSync">
         <div class="steptag">1 / 2 · 동기화 코드</div>
         <h2 class="title">동기화 코드를 입력해주세요</h2>
-        <p class="lead">다른 기기에서 쓰던 코드가 있다면 붙여넣고, 처음이라면 아래 <strong>새로 시작</strong>으로 새 공간을 만들어요.</p>
+        <p class="lead">초대받은 동기화 코드를 입력하면 내 공간이 열려요.</p>
 
         <div>
           <label class="label" for="sync">동기화 코드</label>
@@ -89,12 +81,6 @@ function backToSync() {
 
         <button type="submit" class="btn btn-primary enter" :disabled="!canEnter || busy">
           {{ busy ? '여는 중…' : '내 공간 열기' }} →
-        </button>
-
-        <div class="divider"><span>또는</span></div>
-
-        <button type="button" class="btn btn-ghost" @click="startNew">
-          ✨ 처음이신가요? 새로 시작
         </button>
 
         <p class="footnote">계정도, 비밀번호도 필요 없어요.<br>내 모임방은 동기화 코드를 아는 나만 볼 수 있어요.</p>
@@ -163,11 +149,6 @@ function backToSync() {
 .colorbtn:hover { transform: scale(1.08); }
 .colorbtn.sel { box-shadow: 0 0 0 3px var(--ink), var(--sh); transform: scale(1.08); }
 .colorbtn.sel::after { content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 15px; }
-
-.divider { display: flex; align-items: center; gap: 10px; color: var(--ink-faint); font-size: 12px; font-weight: 700; margin: 4px 0; }
-.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line-soft); }
-.btn-ghost { width: 100%; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line-soft); padding: 13px; font-size: 14.5px; }
-.btn-ghost:hover { background: var(--surface); border-color: var(--line); }
 
 .error { color: #C2386F; font-size: 13px; font-weight: 600; margin: 0; }
 .enter { width: 100%; font-size: 16px; padding: 15px; }
