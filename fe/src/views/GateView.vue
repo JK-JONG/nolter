@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useSpace } from '@/stores/space'
 import { normalizeCode } from '@/lib/id'
 import { USER_COLORS, colorByKey, type UserColorKey } from '@/lib/colors'
 
 const router = useRouter()
+const route = useRoute()
 const space = useSpace()
 
-// 이미 공간+프로필이 준비됐고 이번 세션에서 인증까지 됐으면 게이트 건너뛰고 로비로.
-// (ready 가 sessionAuthed 까지 포함하므로 자동으로 세션 검증됨)
-if (space.ready) router.replace({ name: 'lobby' })
+// 인증 통과 후 어디로 갈지 — 쿼리 redirect 우선(원래 들어가려던 URL), 없으면 로비.
+function goAfterAuth() {
+  const r = route.query.redirect
+  const target = typeof r === 'string' && r.startsWith('/') ? r : null
+  if (target) router.push(target)
+  else router.push({ name: 'lobby' })
+}
+
+// 이미 공간+프로필이 준비됐고 이번 세션에서 인증까지 됐으면 게이트 건너뛰고 목적지로.
+if (space.ready) goAfterAuth()
 
 // 2단계 게이트 — 동기화 코드 = 사이트 입장권.
 //  1) sync    — 코드를 모르면 진입 자체가 불가. 자체 발급 옵션 없음.
@@ -73,7 +81,7 @@ async function submitProfile() {
     if (!res.ok) { error.value = res.reason ?? '입력값을 확인해주세요.'; return }
     pwInput.value = ''
     pwConfirmInput.value = ''
-    router.push({ name: 'lobby' })
+    goAfterAuth()
   } finally { busy.value = false }
 }
 

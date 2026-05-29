@@ -21,11 +21,14 @@ const router = createRouter({
 })
 
 // 글로벌 가드: gate 외 모든 라우트는 ready(=hasSync+hasProfile+sessionAuthed) 필수.
+// 인증 안 된 채 직진입한 URL 은 query.redirect 로 보존 → 게이트 통과 후 그쪽으로 복귀.
 // AdminView 는 추가로 컴포넌트 내부에서 isAdmin 검증.
 router.beforeEach((to) => {
   if (to.name === 'gate') return true
   const space = useSpace()
-  if (!space.ready) return { name: 'gate' }
+  if (!space.ready) {
+    return { name: 'gate', query: { redirect: to.fullPath } }
+  }
   return true
 })
 
