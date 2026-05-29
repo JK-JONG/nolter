@@ -12,14 +12,20 @@ export function newUserId(): string {
   return crypto.randomUUID()
 }
 
-/** 12자(≈60bit) 고엔트로피 방 코드. 대문자·대시 없음(canonical). */
-export function newRoomCode(): string {
-  const bytes = new Uint8Array(12)
+// 내부: 지정한 자리수로 canonical 코드 생성. 256 % 32 === 0 → 모듈로 편향 없음.
+function _generate(len: number): string {
+  const bytes = new Uint8Array(len)
   crypto.getRandomValues(bytes)
   let s = ''
-  for (const b of bytes) s += ALPHABET[b % 32] // 256 % 32 === 0 → 모듈로 편향 없음
+  for (const b of bytes) s += ALPHABET[b % 32]
   return s
 }
+
+/** 동기화 코드 — 12자(≈60bit). DB space 테이블 PK 해싱 대상. 안 바뀜. */
+export function newSyncCode(): string { return _generate(12) }
+
+/** 방 초대 코드 — 8자(≈40bit). 동기화 코드와 자리수를 다르게 해서 구분. */
+export function newRoomCode(): string { return _generate(8) }
 
 /** 입력 코드를 canonical(대문자·영숫자만)로 정규화. */
 export function normalizeCode(input: string): string {

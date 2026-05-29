@@ -55,7 +55,7 @@ async function createRoom() {
 async function joinByInvite() {
   if (busy.value) return
   const code = normalizeCode(joinInput.value)
-  if (code.length < 12) { msg.value = '코드는 12자 이상이에요.'; return }
+  if (code.length < 8) { msg.value = '방 초대 코드는 8자예요.'; return }
   busy.value = true; msg.value = ''
   try {
     if (supabase) {
@@ -113,7 +113,7 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
           </label>
           <div class="zone-row">
             <input id="invite" v-model="joinInput" class="field code-field"
-                   placeholder="ABCD-EFGH-JKLM" maxlength="20" @keyup.enter="joinByInvite" />
+                   placeholder="ABCD-EFGH" maxlength="12" @keyup.enter="joinByInvite" />
             <button class="btn btn-primary" :disabled="busy" @click="joinByInvite">방 추가</button>
           </div>
         </div>

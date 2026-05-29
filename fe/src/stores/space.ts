@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { ref, computed } from 'vue'
-import { newRoomCode, normalizeCode } from '@/lib/id'
+import { newSyncCode, normalizeCode } from '@/lib/id'
 import { colorByKey, type UserColorKey } from '@/lib/colors'
 import { supabase } from '@/lib/supabase'
 
@@ -52,7 +52,7 @@ export const useSpace = defineStore('space', () => {
   function isValidPassword(p: string) { return p.length >= 4 && p.length <= 64 }
 
   // ── 동기화 코드 ──
-  function startNew() { syncCode.value = newRoomCode(); rooms.value = []; version.value = 0 }
+  function startNew() { syncCode.value = newSyncCode(); rooms.value = []; version.value = 0 }
   async function enter(code: string) {
     const c = normalizeCode(code)
     if (c.length < 12) return false
