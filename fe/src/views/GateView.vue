@@ -41,8 +41,16 @@ const pwInput = ref('')
 const pwConfirmInput = ref('')
 const colorKey = ref<UserColorKey>(space.colorKey)
 
-// 가입 모드(vault 에 hash 없음) vs 로그인 모드(hash 있음)
-const isCreating = computed(() => !space.passwordHash)
+// 명시적 모드: 'login' (기본) | 'signup'. 단, vault 가 비어있으면 가입 강제.
+const authMode = ref<'login' | 'signup'>(space.passwordHash ? 'login' : 'signup')
+const isCreating = computed(() => authMode.value === 'signup')
+
+function toggleAuthMode() {
+  authMode.value = authMode.value === 'login' ? 'signup' : 'login'
+  error.value = ''
+  pwInput.value = ''
+  pwConfirmInput.value = ''
+}
 
 const profileValid = computed(() =>
   space.isValidNickname(nicknameInput.value) &&
@@ -54,6 +62,13 @@ async function submitProfile() {
   if (!profileValid.value || busy.value) return
   busy.value = true; error.value = ''
   try {
+    // 모드 일치 검증.
+    if (authMode.value === 'signup' && space.passwordHash) {
+      error.value = '이미 등록된 공간이에요. "로그인" 으로 들어가세요.'; return
+    }
+    if (authMode.value === 'login' && !space.passwordHash) {
+      error.value = '등록된 비밀번호가 없어요. "신규 추가" 로 등록해주세요.'; return
+    }
     const res = await space.login(nicknameInput.value, pwInput.value, colorKey.value, pwConfirmInput.value)
     if (!res.ok) { error.value = res.reason ?? '입력값을 확인해주세요.'; return }
     pwInput.value = ''
@@ -108,10 +123,10 @@ function backToSync() {
           <button type="button" class="back" @click="backToSync" aria-label="동기화 코드 단계로 돌아가기">←</button>
           <div class="steptag">2 / 2 · 프로필</div>
         </div>
-        <h2 class="title">{{ isCreating ? '닉네임을 만들어주세요' : '로그인' }}</h2>
+        <h2 class="title">{{ isCreating ? '신규 추가' : '로그인' }}</h2>
         <p class="lead">
-          <template v-if="isCreating">처음 들어오는 공간이에요. 닉네임과 비밀번호를 등록해주세요.</template>
-          <template v-else>등록된 비밀번호를 입력해주세요.</template>
+          <template v-if="isCreating">새 닉네임과 비밀번호를 등록합니다.</template>
+          <template v-else>등록된 닉네임과 비밀번호를 입력해주세요.</template>
         </p>
 
         <div>
@@ -145,7 +160,10 @@ function backToSync() {
         <p v-if="error" class="error">{{ error }}</p>
 
         <button type="submit" class="btn btn-primary enter" :disabled="!profileValid || busy">
-          {{ busy ? '확인 중…' : (isCreating ? '닉네임 생성' : '로그인') }} →
+          {{ busy ? '확인 중…' : (isCreating ? '닉네임 추가' : '로그인') }} →
+        </button>
+        <button type="button" class="toggle-mode" @click="toggleAuthMode">
+          {{ isCreating ? '← 로그인으로' : '신규 추가' }}
         </button>
       </form>
     </div>
@@ -184,6 +202,13 @@ function backToSync() {
 
 .error { color: #C2386F; font-size: 13px; font-weight: 600; margin: 0; }
 .enter { width: 100%; font-size: 16px; padding: 15px; }
+.toggle-mode {
+  background: transparent; border: none; color: var(--ink-faint);
+  font-size: 13px; padding: 8px 0 0; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+  font-family: 'Nunito', sans-serif; font-weight: 700;
+}
+.toggle-mode:hover { color: var(--brand-ink); }
 .footnote { font-size: 12.5px; color: var(--ink-faint); text-align: center; line-height: 1.5; margin: 0; }
 
 @media (max-width: 760px) {
