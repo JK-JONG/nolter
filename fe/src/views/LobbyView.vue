@@ -104,30 +104,22 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
         </div>
       </header>
 
-      <!-- 좌상단 액션 — 모두 admin 전용 (방 추가/생성) -->
+      <!-- 좌상단 액션 — admin 전용. 한 zone 통합: 코드 입력 → 합류, 빈 채로 자동 생성 → 새 방 -->
       <div v-if="space.isAdmin" class="topzone">
         <div class="zone invite-zone">
           <label class="zone-label" for="invite">
             <svg viewBox="0 0 24 24" class="ti"><path d="M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1"/></svg>
-            초대코드 입력 <span class="admin-only">ADMIN</span>
+            방 코드 <span class="admin-only">ADMIN</span>
           </label>
           <div class="zone-row">
             <input id="invite" v-model="joinInput" class="field code-field"
-                   placeholder="ABCD-EFGH" maxlength="12" @keyup.enter="joinByInvite" />
-            <button class="btn btn-primary" :disabled="busy" @click="joinByInvite">방 추가</button>
+                   placeholder="ABCD-EFGH (또는 비워두기)" maxlength="12" @keyup.enter="joinByInvite" />
+            <button class="btn btn-primary" :disabled="busy || !joinInput.trim()" @click="joinByInvite">합류</button>
+            <button class="btn btn-ghost" :disabled="busy" @click="createRoom" title="새 방을 만들고 코드를 자동 생성">
+              + 자동 생성
+            </button>
           </div>
-        </div>
-
-        <div class="zone create-zone">
-          <label class="zone-label" for="newtitle">
-            <svg viewBox="0 0 24 24" class="ti"><path d="M12 5v14M5 12h14"/></svg>
-            새 모임방 만들기 <span class="admin-only">ADMIN</span>
-          </label>
-          <div class="zone-row">
-            <input id="newtitle" v-model="newTitle" class="field"
-                   placeholder="방 이름 (선택)" maxlength="40" @keyup.enter="createRoom" />
-            <button class="btn btn-ghost" :disabled="busy" @click="createRoom">만들기</button>
-          </div>
+          <p class="zone-hint">코드를 입력하면 그 방에 합류, 비워두고 <b>자동 생성</b>을 누르면 새 방이 만들어집니다.</p>
         </div>
       </div>
 
@@ -198,8 +190,9 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
 .iconbtn svg, .rc-arrow, .rc-remove svg, .cc-x svg, .ti { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .iconbtn:hover { background: var(--brand-soft); color: var(--brand-ink); }
 
-/* 좌상단 액션 존 — admin 전용 (방 추가/생성) */
-.topzone { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 22px; }
+/* 좌상단 액션 존 — admin 전용. 한 zone 으로 통합. */
+.topzone { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 22px; }
+.zone-hint { font-size: 12px; color: var(--ink-faint); margin: 8px 0 0; line-height: 1.5; }
 .admin-only { display: inline-block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 9.5px; letter-spacing: .12em; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: var(--r-pill); margin-left: 4px; vertical-align: middle; }
 .admintag { display: inline-block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 9px; letter-spacing: .12em; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: var(--r-pill); margin-left: 4px; vertical-align: middle; }
 .zone { background: var(--surface); border-radius: var(--r-lg); padding: 16px 18px; box-shadow: var(--sh-sm); border: 1px solid var(--line-soft); }
