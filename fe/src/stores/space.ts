@@ -15,6 +15,12 @@ export interface RoomEntry { roomCode: string; title: string }
 const ADMIN_NICKNAME = (import.meta.env.VITE_ADMIN_NICKNAME ?? '').trim()
 const ADMIN_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD ?? '').trim()
 
+// 세션 인증 — sessionStorage 라 탭/창 닫으면 사라진다. 새로 열면 비번 재입력 필수.
+const SESSION_KEY = 'nolter.authedNickname'
+function readSessionAuth(): string {
+  try { return sessionStorage.getItem(SESSION_KEY) ?? '' } catch { return '' }
+}
+
 export const useSpace = defineStore('space', () => {
   const syncCode = useLocalStorage<string>('nolter.syncCode', '')
   const nickname = useLocalStorage<string>('nolter.nickname', '')
@@ -23,10 +29,16 @@ export const useSpace = defineStore('space', () => {
   const rooms    = useLocalStorage<RoomEntry[]>('nolter.rooms', [])
   const version  = ref(0)  // 서버 버전(낙관적 잠금). 미동기/오프라인이면 0.
 
+  // 세션 인증 마커 — 현재 탭에서 비번 검증을 통과한 닉네임. 새 탭/창에서는 빈값.
+  const sessionAuthedFor = ref<string>(readSessionAuth())
+
   const color = computed(() => colorByKey(colorKey.value))
   const hasSync = computed(() => syncCode.value.length >= 12)
   const hasProfile = computed(() => nickname.value.trim().length > 0 && password.value.length >= 4)
-  const ready = computed(() => hasSync.value && hasProfile.value)
+  const sessionAuthed = computed(() =>
+    sessionAuthedFor.value.length > 0 && sessionAuthedFor.value === nickname.value.trim()
+  )
+  const ready = computed(() => hasSync.value && hasProfile.value && sessionAuthed.value)
 
   // 관리자 모드: 닉네임 + 비밀번호 모두 환경변수와 정확히 일치할 때만 true.
   const isAdmin = computed(() =>
@@ -48,12 +60,18 @@ export const useSpace = defineStore('space', () => {
     await pull()
     return true
   }
-  function reset() { syncCode.value = ''; nickname.value = ''; password.value = ''; rooms.value = []; version.value = 0 }
+  function reset() {
+    syncCode.value = ''; nickname.value = ''; password.value = ''; rooms.value = []; version.value = 0
+    sessionStorage.removeItem(SESSION_KEY); sessionAuthedFor.value = ''
+  }
 
   // ── 프로필 ──
   function setProfile(n: string, p: string, c: UserColorKey) {
     if (!isValidNickname(n) || !isValidPassword(p)) return
     nickname.value = n.trim(); password.value = p; colorKey.value = c
+    // 비번 검증 통과 = 세션 인증.
+    sessionStorage.setItem(SESSION_KEY, nickname.value)
+    sessionAuthedFor.value = nickname.value
     push()
   }
 
@@ -120,7 +138,7 @@ export const useSpace = defineStore('space', () => {
 
   return {
     syncCode, nickname, password, colorKey, rooms, color,
-    hasSync, hasProfile, ready, isAdmin, isValidNickname, isValidPassword,
+    hasSync, hasProfile, sessionAuthed, ready, isAdmin, isValidNickname, isValidPassword,
     startNew, enter, reset, setProfile,
     hasRoom, addRoom, removeRoom, renameRoom, pull,
   }

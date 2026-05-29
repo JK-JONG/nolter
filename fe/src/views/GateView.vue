@@ -8,7 +8,8 @@ import { USER_COLORS, colorByKey, type UserColorKey } from '@/lib/colors'
 const router = useRouter()
 const space = useSpace()
 
-// 이미 공간+프로필이 준비된 사용자는 게이트를 건너뛰고 바로 로비로.
+// 이미 공간+프로필이 준비됐고 이번 세션에서 인증까지 됐으면 게이트 건너뛰고 로비로.
+// (ready 가 sessionAuthed 까지 포함하므로 자동으로 세션 검증됨)
 if (space.ready) router.replace({ name: 'lobby' })
 
 // 2단계 게이트 — 동기화 코드 = 사이트 입장권.
