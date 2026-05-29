@@ -27,16 +27,17 @@ const normalized = normalizeCode(props.code)
 if (normalized.length < 8) {
   router.replace({ name: 'lobby' })
 } else if (!space.hasRoom(normalized) && supabase) {
-  supabase.rpc('room_lookup', { p_code: normalized })
-    .then(({ data }) => {
+  ;(async () => {
+    try {
+      const { data } = await supabase!.rpc('room_lookup', { p_code: normalized })
       if (!data?.roomCode) {
         router.replace({ name: 'lobby' })
       } else {
         // 방이 존재하면 자동으로 내 목록에 추가 (초대 링크 직진입 흐름)
         space.addRoom({ roomCode: data.roomCode, title: data.title })
       }
-    })
-    .catch(() => router.replace({ name: 'lobby' }))
+    } catch { router.replace({ name: 'lobby' }) }
+  })()
 }
 
 const room = useRoom(props.code)
