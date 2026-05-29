@@ -79,7 +79,7 @@ async function joinByInvite() {
 async function copy(text: string, key: string) {
   try { await navigator.clipboard.writeText(text); copiedKey.value = key; setTimeout(() => copiedKey.value = '', 1500) } catch { /* */ }
 }
-function leave() { space.reset(); router.replace({ name: 'gate' }) }
+function leave() { space.logout(); router.replace({ name: 'gate' }) }
 function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
 </script>
 

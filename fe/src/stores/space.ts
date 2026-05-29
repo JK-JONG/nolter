@@ -60,9 +60,19 @@ export const useSpace = defineStore('space', () => {
     await pull()
     return true
   }
+  // 완전 초기화 — 동기화 코드(공간 ID)까지 버린다. 보통 호출되지 않음.
+  // 동기화 코드를 잘못 입력해서 다른 공간으로 옮길 때나 사용.
   function reset() {
     syncCode.value = ''; nickname.value = ''; password.value = ''; rooms.value = []; version.value = 0
     sessionStorage.removeItem(SESSION_KEY); sessionAuthedFor.value = ''
+  }
+
+  // 로그아웃 — 세션 인증·비밀번호만 해제. 동기화 코드(공간 ID)와 닉네임은 유지.
+  // 다음 진입 시: 게이트의 비밀번호 단계만 다시 거친다 (Step 1 동기화 코드는 건너뜀).
+  function logout() {
+    password.value = ''
+    sessionStorage.removeItem(SESSION_KEY)
+    sessionAuthedFor.value = ''
   }
 
   // ── 프로필 ──
@@ -139,7 +149,7 @@ export const useSpace = defineStore('space', () => {
   return {
     syncCode, nickname, password, colorKey, rooms, color,
     hasSync, hasProfile, sessionAuthed, ready, isAdmin, isValidNickname, isValidPassword,
-    startNew, enter, reset, setProfile,
+    startNew, enter, reset, logout, setProfile,
     hasRoom, addRoom, removeRoom, renameRoom, pull,
   }
 })
