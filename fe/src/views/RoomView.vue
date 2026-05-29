@@ -4,8 +4,9 @@ import { useRouter } from 'vue-router'
 import { useIdentity } from '@/stores/identity'
 import { useSpace } from '@/stores/space'
 import { useRoom } from '@/composables/useRoom'
-import { formatCode } from '@/lib/id'
+import { formatCode, normalizeCode } from '@/lib/id'
 import { colorByKey, type UserColorKey } from '@/lib/colors'
+import { supabase } from '@/lib/supabase'
 import type { Tool, TabKey, Stroke, Sticky, Peer } from '@/lib/types'
 import DrawCanvas from '@/components/DrawCanvas.vue'
 import CalendarTab from '@/components/CalendarTab.vue'
@@ -18,6 +19,25 @@ const space = useSpace()       // 프로필(닉네임·색)
 
 // 공간/프로필 미설정으로 직접 /r/:code 로 들어온 경우 게이트로.
 if (!space.ready) router.replace({ name: 'gate' })
+
+// 방 코드 검증: 코드 자체가 짧거나, 내 방 목록에도 없고 서버에도 없는 방이면 로비로.
+// 이미 내가 추가한 방이면 통과. 아니면 supabase 가 있을 때 room_lookup 으로 확인 후
+// 없는 방이면 차단 (URL 만 찍어서 임의 코드로 들어가는 우회 방지).
+const normalized = normalizeCode(props.code)
+if (normalized.length < 8) {
+  router.replace({ name: 'lobby' })
+} else if (!space.hasRoom(normalized) && supabase) {
+  supabase.rpc('room_lookup', { p_code: normalized })
+    .then(({ data }) => {
+      if (!data?.roomCode) {
+        router.replace({ name: 'lobby' })
+      } else {
+        // 방이 존재하면 자동으로 내 목록에 추가 (초대 링크 직진입 흐름)
+        space.addRoom({ roomCode: data.roomCode, title: data.title })
+      }
+    })
+    .catch(() => router.replace({ name: 'lobby' }))
+}
 
 const room = useRoom(props.code)
 
