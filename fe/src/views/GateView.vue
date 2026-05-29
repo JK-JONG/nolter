@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSpace } from '@/stores/space'
 import { normalizeCode } from '@/lib/id'
@@ -9,110 +9,98 @@ const router = useRouter()
 const route = useRoute()
 const space = useSpace()
 
-// 인증 통과 후 어디로 갈지 — 쿼리 redirect 우선(원래 들어가려던 URL), 없으면 로비.
+// 인증 후 어디로 갈지 — 쿼리 redirect 우선.
 function goAfterAuth() {
   const r = route.query.redirect
   const target = typeof r === 'string' && r.startsWith('/') ? r : null
   if (target) router.push(target)
   else router.push({ name: 'lobby' })
 }
-
-// 이미 공간+프로필이 준비됐고 이번 세션에서 인증까지 됐으면 게이트 건너뛰고 목적지로.
 if (space.ready) goAfterAuth()
 
-// 2단계 게이트 — 동기화 코드 = 사이트 입장권.
-//  1) sync    — 코드를 모르면 진입 자체가 불가. 자체 발급 옵션 없음.
-//  2) profile — 코드 통과 후에만 닉네임/색상.
-const step = ref<'sync' | 'profile'>(space.hasSync ? 'profile' : 'sync')
+// 3단계 게이트:
+//   1) sync     — 동기화 코드(게이트) 입력. 자체 발급 없음 — 초대 코드 obscurity.
+//   2) nick     — 닉네임 입력. 서버에서 존재 여부 확인 → 가입 vs 로그인 자동 분기.
+//   3a) login   — 비번 입력.
+//   3b) signup  — 비번 + 확인 + 색상.
+type Step = 'sync' | 'nick' | 'login' | 'signup'
+const step = ref<Step>(space.hasSync ? 'nick' : 'sync')
 
-// ── Step 1 (sync) ──
-const syncInput = ref('')
 const busy = ref(false)
 const error = ref('')
 
+// ── Step 1: sync ──
+const syncInput = ref('')
 const canEnter = computed(() => normalizeCode(syncInput.value).length >= 12)
-
 async function submitSync() {
   if (!canEnter.value || busy.value) return
   busy.value = true; error.value = ''
   try {
     const ok = await space.enter(syncInput.value)
     if (!ok) { error.value = '동기화 코드가 올바르지 않아요 (12자 이상).'; return }
-    // 항상 프로필 단계로 — 닉네임/비번 검증을 매번 거치게.
-    step.value = 'profile'
+    step.value = 'nick'
   } finally { busy.value = false }
 }
 
-// ── Step 2 (profile) ──
+// ── Step 2: nickname (가입/로그인 자동 분기) ──
 const nicknameInput = ref(space.nickname)
+const nicknameValid = computed(() => space.isValidNickname(nicknameInput.value))
+async function submitNickname() {
+  if (!nicknameValid.value || busy.value) return
+  busy.value = true; error.value = ''
+  try {
+    const r = await space.lookupMember(nicknameInput.value)
+    if (r.exists) {
+      // 같은 사람이 다른 기기에서 다시 들어오는 경우 — 비번만 받는다.
+      step.value = 'login'
+      // 서버가 알려준 색상이 있으면 미리 반영(가입 화면에서만 쓰지만 일관 UX).
+      if (r.colorKey) colorKey.value = r.colorKey as UserColorKey
+    } else {
+      step.value = 'signup'
+    }
+    pwInput.value = ''
+    pwConfirmInput.value = ''
+  } finally { busy.value = false }
+}
+
+// ── Step 3a/3b: 비번 ──
 const pwInput = ref('')
 const pwConfirmInput = ref('')
 const colorKey = ref<UserColorKey>(space.colorKey)
-
-// 명시적 모드: 'login' (기본) | 'signup'. 단, vault 가 비어있으면 가입 강제.
-const authMode = ref<'login' | 'signup'>(space.passwordHash ? 'login' : 'signup')
-const isCreating = computed(() => authMode.value === 'signup')
-
-// 사용자가 토글을 눌렀는지 — 눌렀으면 pull 결과로 자동 정정하지 않음.
-let userToggledAuth = false
-function toggleAuthMode() {
-  userToggledAuth = true
-  authMode.value = authMode.value === 'login' ? 'signup' : 'login'
-  error.value = ''
-  pwInput.value = ''
-  pwConfirmInput.value = ''
-}
-
-// 동기화 코드는 있는데 ready 아니라면(다시 들어온 경우),
-// 로컬에 박힌 옛 해시 대신 서버 상태를 정본으로 가져온 뒤 모드를 정정.
-onMounted(async () => {
-  if (space.hasSync && !space.ready) {
-    await space.pull?.()
-    if (!userToggledAuth) authMode.value = space.passwordHash ? 'login' : 'signup'
-  }
-})
-
-// "다른 계정으로" — 이 기기의 가입 상태를 비우고 새로 등록 모드로 전환.
-// 서버 행은 그대로 둠(다른 디바이스에서 로그인 가능). 로컬만 정리.
-function startFreshSignup() {
-  space.logout()
-  space.passwordHash = ''
-  authMode.value = 'signup'
-  userToggledAuth = true
-  error.value = ''
-  pwInput.value = ''
-  pwConfirmInput.value = ''
-  nicknameInput.value = ''
-}
-
-const profileValid = computed(() =>
-  space.isValidNickname(nicknameInput.value) &&
-  space.isValidPassword(pwInput.value) &&
-  (!isCreating.value || pwInput.value === pwConfirmInput.value)
+const pwValid = computed(() => space.isValidPassword(pwInput.value))
+const signupValid = computed(() =>
+  pwValid.value && pwInput.value === pwConfirmInput.value
 )
 
-async function submitProfile() {
-  if (!profileValid.value || busy.value) return
+async function submitLogin() {
+  if (!pwValid.value || busy.value) return
   busy.value = true; error.value = ''
   try {
-    // 모드 일치 검증.
-    if (authMode.value === 'signup' && space.passwordHash) {
-      error.value = '이 기기는 이미 가입돼 있어요. 로그인하거나, 아래 "다른 계정으로"를 눌러 새로 등록하세요.'; return
-    }
-    if (authMode.value === 'login' && !space.passwordHash) {
-      error.value = '이 기기에 등록된 정보가 없어요. "신규 추가" 로 가입해주세요.'; return
-    }
-    const res = await space.login(nicknameInput.value, pwInput.value, colorKey.value, pwConfirmInput.value)
-    if (!res.ok) { error.value = res.reason ?? '입력값을 확인해주세요.'; return }
-    pwInput.value = ''
-    pwConfirmInput.value = ''
+    const res = await space.login(nicknameInput.value, pwInput.value)
+    if (!res.ok) { error.value = res.reason ?? '로그인 실패'; return }
+    pwInput.value = ''; pwConfirmInput.value = ''
     goAfterAuth()
   } finally { busy.value = false }
 }
 
-function backToSync() {
-  step.value = 'sync'
+async function submitSignup() {
+  if (!signupValid.value || busy.value) return
+  busy.value = true; error.value = ''
+  try {
+    const res = await space.signup(nicknameInput.value, pwInput.value, pwConfirmInput.value, colorKey.value)
+    if (!res.ok) {
+      error.value = res.reason ?? '가입 실패'
+      // 중복 닉네임이면 닉네임 단계로 돌려보낸다.
+      if (res.reason?.includes('이미 사용 중')) { step.value = 'nick' }
+      return
+    }
+    pwInput.value = ''; pwConfirmInput.value = ''
+    goAfterAuth()
+  } finally { busy.value = false }
 }
+
+// ── 뒤로 가기 ──
+function backTo(s: Step) { step.value = s; error.value = '' }
 </script>
 
 <template>
@@ -122,7 +110,7 @@ function backToSync() {
       <div class="hero">
         <div class="logo"><span class="mark">✦</span> 놀터</div>
         <h1>친구들과<br>같이 그리는<br><em>놀이터.</em></h1>
-        <p>동기화 코드 하나로 내 공간을 열어요. 로그인 없이, 어느 기기에서나 내 모임방이 그대로 이어집니다.</p>
+        <p>동기화 코드 하나로 내 공간을 열어요. 어느 기기에서나 같은 닉네임으로 들어오면 내 모임방이 그대로 이어집니다.</p>
         <div class="stickerrow">
           <span class="sticker" :style="{ background: colorByKey('mint').soft, color: colorByKey('mint').ink }">실시간 드로잉</span>
           <span class="sticker" :style="{ background: colorByKey('pink').soft, color: colorByKey('pink').ink }">스티키 메모</span>
@@ -130,56 +118,78 @@ function backToSync() {
         </div>
       </div>
 
-      <!-- 오른쪽 — Step 1: 동기화 코드 -->
+      <!-- Step 1: sync -->
       <form v-if="step === 'sync'" class="panel" @submit.prevent="submitSync">
-        <div class="steptag">1 / 2 · 동기화 코드</div>
+        <div class="steptag">1 / 3 · 동기화 코드</div>
         <h2 class="title">동기화 코드를 입력해주세요</h2>
         <p class="lead">초대받은 동기화 코드를 입력하면 내 공간이 열려요.</p>
-
         <div>
           <label class="label" for="sync">동기화 코드</label>
           <input id="sync" v-model="syncInput" class="field code-field" placeholder="ABCD-EFGH-JKLM" autocomplete="off" autofocus />
         </div>
-
         <p v-if="error" class="error">{{ error }}</p>
-
         <button type="submit" class="btn btn-primary enter" :disabled="!canEnter || busy">
           {{ busy ? '여는 중…' : '내 공간 열기' }} →
         </button>
-
         <p class="footnote">계정도, 비밀번호도 필요 없어요.<br>내 모임방은 동기화 코드를 아는 나만 볼 수 있어요.</p>
       </form>
 
-      <!-- 오른쪽 — Step 2: 프로필 -->
-      <form v-else class="panel" @submit.prevent="submitProfile">
+      <!-- Step 2: nickname -->
+      <form v-else-if="step === 'nick'" class="panel" @submit.prevent="submitNickname">
         <div class="steprow">
-          <button type="button" class="back" @click="backToSync" aria-label="동기화 코드 단계로 돌아가기">←</button>
-          <div class="steptag">2 / 2 · 프로필</div>
+          <button type="button" class="back" @click="backTo('sync')" aria-label="동기화 코드로 돌아가기">←</button>
+          <div class="steptag">2 / 3 · 닉네임</div>
         </div>
-        <h2 class="title">{{ isCreating ? '신규 추가' : '로그인' }}</h2>
-        <p class="lead">
-          <template v-if="isCreating">새 닉네임과 비밀번호를 등록합니다.</template>
-          <template v-else>등록된 닉네임과 비밀번호를 입력해주세요.</template>
-        </p>
-
+        <h2 class="title">닉네임을 알려주세요</h2>
+        <p class="lead">이 게이트 안에서 친구들이 부를 이름이에요. 이미 같은 닉네임이 있으면 그 사람의 로그인이고, 처음이면 새로 가입합니다.</p>
         <div>
-          <label class="label" for="nick">닉네임</label>
+          <label class="label" for="nick">닉네임 <span class="hint">1–16자</span></label>
           <input id="nick" v-model="nicknameInput" class="field" placeholder="이름을 적어주세요" maxlength="16" autocomplete="off" autofocus />
         </div>
+        <p v-if="error" class="error">{{ error }}</p>
+        <button type="submit" class="btn btn-primary enter" :disabled="!nicknameValid || busy">
+          {{ busy ? '확인 중…' : '다음' }} →
+        </button>
+      </form>
 
-        <div>
-          <label class="label" for="pw">비밀번호 <span class="hint">4자 이상</span></label>
-          <input id="pw" v-model="pwInput" type="password" class="field" placeholder="••••"
-                 maxlength="64" :autocomplete="isCreating ? 'new-password' : 'current-password'" />
+      <!-- Step 3a: login -->
+      <form v-else-if="step === 'login'" class="panel" @submit.prevent="submitLogin">
+        <div class="steprow">
+          <button type="button" class="back" @click="backTo('nick')" aria-label="닉네임으로 돌아가기">←</button>
+          <div class="steptag">3 / 3 · 로그인</div>
         </div>
+        <h2 class="title">{{ nicknameInput.trim() }}님, 어서오세요</h2>
+        <p class="lead">비밀번호만 입력하면 됩니다.</p>
+        <div>
+          <label class="label" for="pw">비밀번호</label>
+          <input id="pw" v-model="pwInput" type="password" class="field" placeholder="••••"
+                 maxlength="64" autocomplete="current-password" autofocus />
+        </div>
+        <p v-if="error" class="error">{{ error }}</p>
+        <button type="submit" class="btn btn-primary enter" :disabled="!pwValid || busy">
+          {{ busy ? '확인 중…' : '로그인' }} →
+        </button>
+      </form>
 
-        <div v-if="isCreating">
-          <label class="label" for="pw2">비밀번호 확인</label>
-          <input id="pw2" v-model="pwConfirmInput" type="password" class="field" placeholder="••••"
+      <!-- Step 3b: signup -->
+      <form v-else class="panel" @submit.prevent="submitSignup">
+        <div class="steprow">
+          <button type="button" class="back" @click="backTo('nick')" aria-label="닉네임으로 돌아가기">←</button>
+          <div class="steptag">3 / 3 · 신규 가입</div>
+        </div>
+        <h2 class="title">"{{ nicknameInput.trim() }}" 으로 가입할게요</h2>
+        <p class="lead">비밀번호와 내 색을 정해주세요.</p>
+        <div>
+          <label class="label" for="pw2">비밀번호 <span class="hint">4자 이상</span></label>
+          <input id="pw2" v-model="pwInput" type="password" class="field" placeholder="••••"
+                 maxlength="64" autocomplete="new-password" autofocus />
+        </div>
+        <div>
+          <label class="label" for="pw3">비밀번호 확인</label>
+          <input id="pw3" v-model="pwConfirmInput" type="password" class="field" placeholder="••••"
                  maxlength="64" autocomplete="new-password" />
         </div>
-
-        <div v-if="isCreating">
+        <div>
           <label class="label">내 색 고르기 <span class="hint">10가지 중 하나</span></label>
           <div class="colors">
             <button
@@ -189,17 +199,9 @@ function backToSync() {
             ></button>
           </div>
         </div>
-
         <p v-if="error" class="error">{{ error }}</p>
-
-        <button type="submit" class="btn btn-primary enter" :disabled="!profileValid || busy">
-          {{ busy ? '확인 중…' : (isCreating ? '닉네임 추가' : '로그인') }} →
-        </button>
-        <button type="button" class="toggle-mode" @click="toggleAuthMode">
-          {{ isCreating ? '← 로그인으로' : '신규 추가' }}
-        </button>
-        <button v-if="space.passwordHash" type="button" class="toggle-mode subtle" @click="startFreshSignup">
-          다른 계정으로 가입
+        <button type="submit" class="btn btn-primary enter" :disabled="!signupValid || busy">
+          {{ busy ? '가입 중…' : '가입 완료' }} →
         </button>
       </form>
     </div>
@@ -238,15 +240,6 @@ function backToSync() {
 
 .error { color: #C2386F; font-size: 13px; font-weight: 600; margin: 0; }
 .enter { width: 100%; font-size: 16px; padding: 15px; }
-.toggle-mode {
-  background: transparent; border: none; color: var(--ink-faint);
-  font-size: 13px; padding: 8px 0 0; cursor: pointer;
-  text-decoration: underline; text-underline-offset: 3px;
-  font-family: 'Nunito', sans-serif; font-weight: 700;
-}
-.toggle-mode:hover { color: var(--brand-ink); }
-.toggle-mode.subtle { color: var(--ink-faint); font-size: 12px; padding-top: 4px; }
-.toggle-mode.subtle:hover { color: var(--ink-soft); }
 .footnote { font-size: 12.5px; color: var(--ink-faint); text-align: center; line-height: 1.5; margin: 0; }
 
 @media (max-width: 760px) {

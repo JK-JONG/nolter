@@ -4,51 +4,45 @@ import { ref, computed } from 'vue'
 import { newSyncCode, normalizeCode, sha256Hex } from '@/lib/id'
 import { colorByKey, type UserColorKey } from '@/lib/colors'
 import { supabase } from '@/lib/supabase'
-import { useIdentity } from '@/stores/identity'
 
 export interface RoomEntry { roomCode: string; title: string }
 
-// 한 동기화 코드 = 한 사용자 공간(space row).
-// space.data jsonb 에 profile(nickname/colorKey/passwordHash) + rooms 가 저장된다.
-// 비밀번호는 sha256 hex 만 vault 에 push (평문은 같은 기기 localStorage 만).
+// 한 동기화 코드(게이트) 안에서 닉네임으로 멤버를 식별한다.
+//   • 가입: 닉네임 중복 시 'duplicate' 에러.
+//   • 로그인: 닉네임 + 비번 해시 일치 시 데이터 반환.
+//   • 같은 닉네임 다른 디바이스 → 같은 행 → 룸 목록 로밍.
+// 비밀번호 평문은 같은 기기 admin 비교용으로만 localStorage 에 둔다.
 //
-// 관리자 식별 — 빌드 타임에 환경변수에서 주입. 둘 중 하나라도 비면 admin 비활성.
+// 관리자 식별 — 빌드 타임 env 주입. 둘 중 하나라도 비면 admin 비활성.
+// (주의: env 값이 클라이언트 번들에 노출되므로 친구용 honor-system 수준.)
 const ADMIN_NICKNAME = (import.meta.env.VITE_ADMIN_NICKNAME ?? '').trim()
 const ADMIN_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD ?? '').trim()
 
-// 세션 인증 — sessionStorage 라 탭/창 닫으면 사라진다. 새로 열면 비번 재입력 필수.
+// 세션 인증 — sessionStorage 라 탭/창 닫으면 사라진다.
 const SESSION_KEY = 'nolter.authedNickname'
 function readSessionAuth(): string {
   try { return sessionStorage.getItem(SESSION_KEY) ?? '' } catch { return '' }
 }
 
 export const useSpace = defineStore('space', () => {
-  const identity = useIdentity()
   const syncCode = useLocalStorage<string>('nolter.syncCode', '')
   const nickname = useLocalStorage<string>('nolter.nickname', '')
-  // password = 평문(같은 기기 admin 비교용). passwordHash = vault 에 저장될 본인 인증 hash.
-  const password     = useLocalStorage<string>('nolter.password', '')
-  const passwordHash = useLocalStorage<string>('nolter.passwordHash', '')
+  const password     = useLocalStorage<string>('nolter.password', '')      // admin 비교용 평문(같은 기기)
+  const passwordHash = useLocalStorage<string>('nolter.passwordHash', '')  // 정본은 서버
   const colorKey = useLocalStorage<UserColorKey>('nolter.colorKey', 'mint')
   const rooms    = useLocalStorage<RoomEntry[]>('nolter.rooms', [])
-  const version  = ref(0)  // 서버 버전(낙관적 잠금). 미동기/오프라인이면 0.
+  const version  = ref(0)
 
-  // 세션 인증 마커 — 현재 탭에서 비번 검증을 통과한 닉네임. 새 탭/창에서는 빈값.
   const sessionAuthedFor = ref<string>(readSessionAuth())
 
   const color = computed(() => colorByKey(colorKey.value))
   const hasSync = computed(() => syncCode.value.length >= 12)
-  // hash 가 있어야 등록된 사용자. 평문 password 는 admin 비교용으로만.
   const hasProfile = computed(() => nickname.value.trim().length > 0 && passwordHash.value.length > 0)
   const sessionAuthed = computed(() =>
     sessionAuthedFor.value.length > 0 && sessionAuthedFor.value === nickname.value.trim()
   )
   const ready = computed(() => hasSync.value && hasProfile.value && sessionAuthed.value)
 
-  // 가입 모드 = vault 에 passwordHash 가 아직 없는 상태.
-  const isCreatingAccount = computed(() => hasSync.value && !passwordHash.value)
-
-  // 관리자 모드: 닉네임 + 비밀번호 모두 환경변수와 정확히 일치할 때만 true.
   const isAdmin = computed(() =>
     ADMIN_NICKNAME.length > 0 &&
     ADMIN_PASSWORD.length > 0 &&
@@ -59,51 +53,112 @@ export const useSpace = defineStore('space', () => {
   function isValidNickname(n: string) { const t = n.trim(); return t.length >= 1 && t.length <= 16 }
   function isValidPassword(p: string) { return p.length >= 4 && p.length <= 64 }
 
-  // ── 동기화 코드 ──
+  // ── 게이트 ──
   function startNew() { syncCode.value = newSyncCode(); rooms.value = []; version.value = 0 }
   async function enter(code: string) {
     const c = normalizeCode(code)
     if (c.length < 12) return false
     syncCode.value = c
-    await pull()
     return true
   }
-  // 완전 초기화 — 동기화 코드(공간 ID)까지 버린다.
+
+  // 완전 초기화 — 동기화 코드까지 버린다.
   function reset() {
-    syncCode.value = ''; nickname.value = ''; password.value = ''; passwordHash.value = ''
-    rooms.value = []; version.value = 0
+    syncCode.value = ''
+    nickname.value = ''; password.value = ''; passwordHash.value = ''
+    rooms.value = []; version.value = 0; colorKey.value = 'mint'
     sessionStorage.removeItem(SESSION_KEY); sessionAuthedFor.value = ''
   }
 
-  // 로그아웃 — 세션·평문 비번만 해제. syncCode/nickname/passwordHash 유지.
+  // 로그아웃 — 프로필 로컬 정리. 동기화 코드는 유지.
   function logout() {
-    password.value = ''
-    sessionStorage.removeItem(SESSION_KEY)
-    sessionAuthedFor.value = ''
+    nickname.value = ''; password.value = ''; passwordHash.value = ''
+    rooms.value = []; version.value = 0; colorKey.value = 'mint'
+    sessionStorage.removeItem(SESSION_KEY); sessionAuthedFor.value = ''
   }
 
-  // ── 가입/로그인 (단일 진입점) ──
-  // 가입 모드(hash 없음): pwConfirm 일치해야 hash 생성·저장.
-  // 로그인 모드(hash 있음): 입력 비번의 hash 가 저장된 hash 와 일치해야 함.
-  // 둘 다 성공 시: 평문 password / nickname / colorKey 저장 + 세션 인증 + push.
-  async function login(
-    n: string, p: string, c: UserColorKey, pConfirm?: string
-  ): Promise<{ ok: boolean; mode: 'create' | 'login'; reason?: string }> {
-    const mode: 'create' | 'login' = passwordHash.value ? 'login' : 'create'
-    if (!isValidNickname(n)) return { ok: false, mode, reason: '닉네임이 올바르지 않아요.' }
-    if (!isValidPassword(p)) return { ok: false, mode, reason: '비밀번호는 4자 이상이에요.' }
-    const inputHash = await sha256Hex(p)
-    if (mode === 'create') {
-      if (pConfirm !== p) return { ok: false, mode, reason: '비밀번호가 일치하지 않아요.' }
-      passwordHash.value = inputHash
+  // ── 닉네임 사전 조회 — 가입/로그인 분기 ──
+  async function lookupMember(n: string): Promise<{ exists: boolean; colorKey?: UserColorKey }> {
+    if (!supabase || !hasSync.value || !isValidNickname(n)) return { exists: false }
+    try {
+      const { data } = await supabase.rpc('space_lookup_member', {
+        p_code: syncCode.value, p_nick: n.trim(),
+      })
+      return data ?? { exists: false }
+    } catch { return { exists: false } }
+  }
+
+  // ── 신규 가입 ──
+  async function signup(
+    n: string, p: string, pConfirm: string, c: UserColorKey
+  ): Promise<{ ok: boolean; reason?: string }> {
+    if (!isValidNickname(n)) return { ok: false, reason: '닉네임이 올바르지 않아요.' }
+    if (!isValidPassword(p)) return { ok: false, reason: '비밀번호는 4자 이상이에요.' }
+    if (pConfirm !== p) return { ok: false, reason: '비밀번호가 일치하지 않아요.' }
+    const hash = await sha256Hex(p)
+    if (supabase && hasSync.value) {
+      try {
+        const { data, error } = await supabase.rpc('space_signup', {
+          p_code: syncCode.value, p_nick: n.trim(), p_hash: hash, p_color: c,
+        })
+        if (error) return { ok: false, reason: error.message ?? '서버 오류로 가입에 실패했어요.' }
+        if (!data?.ok) {
+          if (data?.reason === 'duplicate') return { ok: false, reason: '이미 사용 중인 닉네임이에요.' }
+          return { ok: false, reason: '가입 실패: ' + (data?.reason ?? 'unknown') }
+        }
+        version.value = data.version ?? 1
+      } catch (e) {
+        return { ok: false, reason: '네트워크 오류 — 잠시 후 다시 시도해주세요.' }
+      }
     } else {
-      if (passwordHash.value !== inputHash) return { ok: false, mode, reason: '비밀번호가 맞지 않아요.' }
+      // 솔로 모드: 로컬만.
+      version.value = 0
     }
-    nickname.value = n.trim(); password.value = p; colorKey.value = c
-    sessionStorage.setItem(SESSION_KEY, nickname.value)
-    sessionAuthedFor.value = nickname.value
-    push()
-    return { ok: true, mode }
+    // 로컬 상태 갱신.
+    nickname.value = n.trim(); password.value = p; passwordHash.value = hash; colorKey.value = c
+    rooms.value = []
+    sessionStorage.setItem(SESSION_KEY, nickname.value); sessionAuthedFor.value = nickname.value
+    return { ok: true }
+  }
+
+  // ── 로그인 ──
+  async function login(n: string, p: string): Promise<{ ok: boolean; reason?: string }> {
+    if (!isValidNickname(n)) return { ok: false, reason: '닉네임을 확인해주세요.' }
+    if (!isValidPassword(p)) return { ok: false, reason: '비밀번호를 확인해주세요.' }
+    const hash = await sha256Hex(p)
+    if (supabase && hasSync.value) {
+      try {
+        const { data, error } = await supabase.rpc('space_login', {
+          p_code: syncCode.value, p_nick: n.trim(), p_hash: hash,
+        })
+        if (error) return { ok: false, reason: error.message ?? '서버 오류로 로그인에 실패했어요.' }
+        if (!data?.ok) {
+          if (data?.reason === 'no_member')   return { ok: false, reason: '등록되지 않은 닉네임이에요.' }
+          if (data?.reason === 'bad_password') return { ok: false, reason: '비밀번호가 맞지 않아요.' }
+          return { ok: false, reason: '로그인 실패: ' + (data?.reason ?? 'unknown') }
+        }
+        const d = data.data as {
+          profile?: { nickname?: string; colorKey?: UserColorKey; passwordHash?: string }
+          rooms?: RoomEntry[]
+        }
+        nickname.value = d.profile?.nickname ?? n.trim()
+        colorKey.value = (d.profile?.colorKey as UserColorKey) ?? colorKey.value
+        passwordHash.value = d.profile?.passwordHash ?? hash
+        rooms.value = Array.isArray(d.rooms) ? d.rooms : []
+        version.value = data.version ?? 1
+      } catch (e) {
+        return { ok: false, reason: '네트워크 오류 — 잠시 후 다시 시도해주세요.' }
+      }
+    } else {
+      // 솔로: 로컬 hash 비교.
+      if (passwordHash.value && passwordHash.value !== hash) {
+        return { ok: false, reason: '비밀번호가 맞지 않아요.' }
+      }
+      nickname.value = n.trim(); passwordHash.value = hash
+    }
+    password.value = p  // admin 비교용
+    sessionStorage.setItem(SESSION_KEY, nickname.value); sessionAuthedFor.value = nickname.value
+    return { ok: true }
   }
 
   // ── 방 목록 ──
@@ -127,11 +182,10 @@ export const useSpace = defineStore('space', () => {
     rooms.value = [...map.values()]
   }
   async function pull() {
-    if (!supabase || !hasSync.value) return
+    if (!supabase || !hasSync.value || !nickname.value.trim()) return
     try {
       const { data } = await supabase.rpc('space_pull', {
-        p_code: syncCode.value,
-        p_user_id: identity.userId,
+        p_code: syncCode.value, p_nick: nickname.value.trim(),
       })
       const row = Array.isArray(data) ? data[0] : data
       if (row?.data) {
@@ -139,41 +193,33 @@ export const useSpace = defineStore('space', () => {
           profile?: { nickname?: string; colorKey?: UserColorKey; passwordHash?: string }
           rooms?: RoomEntry[]
         }
-        const hadLocalProfile = nickname.value.trim().length > 0
-        if (d.profile?.nickname && !hadLocalProfile) nickname.value = d.profile.nickname
-        if (d.profile?.colorKey && !hadLocalProfile) colorKey.value = d.profile.colorKey
-        // vault 의 hash 가 정본 — 같은 기기에서 다시 들어온 경우에도 검증할 수 있게 받음.
+        if (d.profile?.colorKey) colorKey.value = d.profile.colorKey
         if (d.profile?.passwordHash) passwordHash.value = d.profile.passwordHash
         if (Array.isArray(d.rooms)) mergeRooms(d.rooms)
         version.value = row.version ?? 0
-      } else {
-        // 이 기기/이 게이트 조합으로 등록된 적이 없음 → 가입 모드로 들어갈 수 있게 로컬 정리.
-        // (예전 단일-슬롯 모델에서 친구의 admin 해시가 박혀버리는 버그 방지.)
-        passwordHash.value = ''
-        version.value = 0
       }
-    } catch { /* 오프라인/미설정 → 로컬만 */ }
+    } catch { /* 오프라인 → 로컬만 */ }
   }
   let pushTimer: ReturnType<typeof setTimeout> | null = null
   function push() {
-    if (!supabase || !hasSync.value) return
+    if (!supabase || !hasSync.value || !nickname.value.trim()) return
     if (pushTimer) clearTimeout(pushTimer)
     pushTimer = setTimeout(doPush, 400)
   }
   async function doPush(retry = false) {
-    if (!supabase || !hasSync.value) return
+    if (!supabase || !hasSync.value || !nickname.value.trim()) return
     const payload = {
       profile: {
         nickname: nickname.value,
         colorKey: colorKey.value,
-        passwordHash: passwordHash.value,  // hash 만 push (평문 X)
+        passwordHash: passwordHash.value,
       },
       rooms: rooms.value,
     }
     try {
       const { data } = await supabase.rpc('space_push', {
         p_code: syncCode.value,
-        p_user_id: identity.userId,
+        p_nick: nickname.value.trim(),
         p_data: payload,
         p_expected_version: version.value,
       })
@@ -190,9 +236,10 @@ export const useSpace = defineStore('space', () => {
 
   return {
     syncCode, nickname, password, passwordHash, colorKey, rooms, color,
-    hasSync, hasProfile, sessionAuthed, ready, isAdmin, isCreatingAccount,
+    hasSync, hasProfile, sessionAuthed, ready, isAdmin,
     isValidNickname, isValidPassword,
-    startNew, enter, reset, logout, login,
+    startNew, enter, reset, logout,
+    lookupMember, signup, login,
     hasRoom, addRoom, removeRoom, renameRoom, pull,
   }
 })
