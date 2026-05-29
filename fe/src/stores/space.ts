@@ -95,6 +95,15 @@ export const useSpace = defineStore('space', () => {
     if (!isValidNickname(n)) return { ok: false, reason: '닉네임이 올바르지 않아요.' }
     if (!isValidPassword(p)) return { ok: false, reason: '비밀번호는 4자 이상이에요.' }
     if (pConfirm !== p) return { ok: false, reason: '비밀번호가 일치하지 않아요.' }
+    // 관리자 닉네임 예약 — 진짜 관리자는 본인 비번을 알고 있으니 가입 가능,
+    // 다른 사람이 같은 닉네임을 채려는 시도는 차단.
+    if (
+      ADMIN_NICKNAME.length > 0 &&
+      n.trim().toLowerCase() === ADMIN_NICKNAME.toLowerCase() &&
+      p !== ADMIN_PASSWORD
+    ) {
+      return { ok: false, reason: '이 닉네임은 사용할 수 없어요.' }
+    }
     const hash = await sha256Hex(p)
     if (supabase && hasSync.value) {
       try {
