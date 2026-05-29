@@ -17,6 +17,12 @@
 --
 -- 적용: Supabase 대시보드 → SQL Editor 에 이 파일 전체 RUN.
 
+-- ── 0004 잔재 정리: 파라미터 이름(p_user_id → p_nick) 이 달라서
+--    Postgres 가 CREATE OR REPLACE 를 거부함 → 명시적으로 DROP. ──
+drop function if exists public.space_hash(text, text);
+drop function if exists public.space_pull(text, text);
+drop function if exists public.space_push(text, text, jsonb, integer);
+
 -- ── 헬퍼: (code, nickname) → hash ──
 create or replace function public.space_hash(p_code text, p_nick text)
 returns text
