@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSpace } from '@/stores/space'
 import { normalizeCode } from '@/lib/id'
@@ -53,11 +53,36 @@ const colorKey = ref<UserColorKey>(space.colorKey)
 const authMode = ref<'login' | 'signup'>(space.passwordHash ? 'login' : 'signup')
 const isCreating = computed(() => authMode.value === 'signup')
 
+// 사용자가 토글을 눌렀는지 — 눌렀으면 pull 결과로 자동 정정하지 않음.
+let userToggledAuth = false
 function toggleAuthMode() {
+  userToggledAuth = true
   authMode.value = authMode.value === 'login' ? 'signup' : 'login'
   error.value = ''
   pwInput.value = ''
   pwConfirmInput.value = ''
+}
+
+// 동기화 코드는 있는데 ready 아니라면(다시 들어온 경우),
+// 로컬에 박힌 옛 해시 대신 서버 상태를 정본으로 가져온 뒤 모드를 정정.
+onMounted(async () => {
+  if (space.hasSync && !space.ready) {
+    await space.pull?.()
+    if (!userToggledAuth) authMode.value = space.passwordHash ? 'login' : 'signup'
+  }
+})
+
+// "다른 계정으로" — 이 기기의 가입 상태를 비우고 새로 등록 모드로 전환.
+// 서버 행은 그대로 둠(다른 디바이스에서 로그인 가능). 로컬만 정리.
+function startFreshSignup() {
+  space.logout()
+  space.passwordHash = ''
+  authMode.value = 'signup'
+  userToggledAuth = true
+  error.value = ''
+  pwInput.value = ''
+  pwConfirmInput.value = ''
+  nicknameInput.value = ''
 }
 
 const profileValid = computed(() =>
@@ -72,10 +97,10 @@ async function submitProfile() {
   try {
     // 모드 일치 검증.
     if (authMode.value === 'signup' && space.passwordHash) {
-      error.value = '이미 등록된 공간이에요. "로그인" 으로 들어가세요.'; return
+      error.value = '이 기기는 이미 가입돼 있어요. 로그인하거나, 아래 "다른 계정으로"를 눌러 새로 등록하세요.'; return
     }
     if (authMode.value === 'login' && !space.passwordHash) {
-      error.value = '등록된 비밀번호가 없어요. "신규 추가" 로 등록해주세요.'; return
+      error.value = '이 기기에 등록된 정보가 없어요. "신규 추가" 로 가입해주세요.'; return
     }
     const res = await space.login(nicknameInput.value, pwInput.value, colorKey.value, pwConfirmInput.value)
     if (!res.ok) { error.value = res.reason ?? '입력값을 확인해주세요.'; return }
@@ -173,6 +198,9 @@ function backToSync() {
         <button type="button" class="toggle-mode" @click="toggleAuthMode">
           {{ isCreating ? '← 로그인으로' : '신규 추가' }}
         </button>
+        <button v-if="space.passwordHash" type="button" class="toggle-mode subtle" @click="startFreshSignup">
+          다른 계정으로 가입
+        </button>
       </form>
     </div>
   </div>
@@ -217,6 +245,8 @@ function backToSync() {
   font-family: 'Nunito', sans-serif; font-weight: 700;
 }
 .toggle-mode:hover { color: var(--brand-ink); }
+.toggle-mode.subtle { color: var(--ink-faint); font-size: 12px; padding-top: 4px; }
+.toggle-mode.subtle:hover { color: var(--ink-soft); }
 .footnote { font-size: 12.5px; color: var(--ink-faint); text-align: center; line-height: 1.5; margin: 0; }
 
 @media (max-width: 760px) {
