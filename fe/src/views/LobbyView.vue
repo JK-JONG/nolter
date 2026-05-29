@@ -104,12 +104,12 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
         </div>
       </header>
 
-      <!-- 좌상단 액션: 초대코드 입력 + 새 모임방 -->
-      <div class="topzone">
+      <!-- 좌상단 액션 — 모두 admin 전용 (방 추가/생성) -->
+      <div v-if="space.isAdmin" class="topzone">
         <div class="zone invite-zone">
           <label class="zone-label" for="invite">
             <svg viewBox="0 0 24 24" class="ti"><path d="M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1"/></svg>
-            초대코드 입력
+            초대코드 입력 <span class="admin-only">ADMIN</span>
           </label>
           <div class="zone-row">
             <input id="invite" v-model="joinInput" class="field code-field"
@@ -118,7 +118,7 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
           </div>
         </div>
 
-        <div v-if="space.isAdmin" class="zone create-zone">
+        <div class="zone create-zone">
           <label class="zone-label" for="newtitle">
             <svg viewBox="0 0 24 24" class="ti"><path d="M12 5v14M5 12h14"/></svg>
             새 모임방 만들기 <span class="admin-only">ADMIN</span>
@@ -180,18 +180,6 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
         <p>아직 추가된 모임방이 없어요.<br>위에서 새 방을 만들거나, 친구한테 받은 코드를 입력해보세요.</p>
       </div>
 
-      <!-- 동기화 코드(보조) -->
-      <details class="sync">
-        <summary>내 동기화 코드 보기</summary>
-        <div class="sync-body">
-          <code>{{ formatCode(space.syncCode) }}</code>
-          <button class="btn btn-soft" @click="copy(space.syncCode, 'sync')">
-            {{ copiedKey === 'sync' ? '복사됨!' : '복사' }}
-          </button>
-          <p>다른 기기에서 "동기화 코드 입력"에 이 코드를 넣으면 내 모임방이 그대로 이어져요.</p>
-        </div>
-      </details>
-
       <p v-if="!supabaseConfigured" class="solo-note">⚠️ 실시간 동기화가 꺼져 있어요(.env 미설정). 지금은 이 기기 안에서만 동작하는 솔로 모드입니다.</p>
     </div>
   </div>
@@ -210,9 +198,8 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
 .iconbtn svg, .rc-arrow, .rc-remove svg, .cc-x svg, .ti { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .iconbtn:hover { background: var(--brand-soft); color: var(--brand-ink); }
 
-/* 좌상단 액션 존 — 초대코드 입력이 가장 prominent. admin 일 때만 두 번째 칸(새 모임방)이 추가됨 */
-.topzone { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 22px; }
-.topzone:has(.create-zone) { grid-template-columns: 1.4fr 1fr; }
+/* 좌상단 액션 존 — admin 전용 (방 추가/생성) */
+.topzone { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-bottom: 22px; }
 .admin-only { display: inline-block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 9.5px; letter-spacing: .12em; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: var(--r-pill); margin-left: 4px; vertical-align: middle; }
 .admintag { display: inline-block; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 9px; letter-spacing: .12em; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: var(--r-pill); margin-left: 4px; vertical-align: middle; }
 .zone { background: var(--surface); border-radius: var(--r-lg); padding: 16px 18px; box-shadow: var(--sh-sm); border: 1px solid var(--line-soft); }
