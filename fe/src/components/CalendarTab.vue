@@ -27,18 +27,45 @@ const viewMonth = ref(new Date().getMonth()) // 0-11
 // ── 폼 ──
 const newTitle = ref('')
 const newTime = ref('')
+const newEndDate = ref('')   // 비우면 단일일, 채우면 [선택일..endDate] 다일.
 const titleInputRef = ref<HTMLInputElement | null>(null)
 
 // ── 데이터 파생 ──
 const eventList = computed(() => [...props.room.events.values()] as EventEntity[])
+function endOf(e: EventEntity) { return e.endDate && e.endDate >= e.date ? e.endDate : e.date }
+function isMultiDay(e: EventEntity) { return endOf(e) !== e.date }
+function dayCount(e: EventEntity) {
+  const a = new Date(e.date + 'T00:00:00').getTime()
+  const b = new Date(endOf(e) + 'T00:00:00').getTime()
+  return Math.max(1, Math.round((b - a) / 86400000) + 1)
+}
+function dateRangeLabel(e: EventEntity) {
+  if (!isMultiDay(e)) return ''
+  const fmt = (iso: string) => {
+    const d = new Date(iso + 'T00:00:00')
+    return `${d.getMonth() + 1}/${d.getDate()}`
+  }
+  return `${fmt(e.date)} ~ ${fmt(endOf(e))} (${dayCount(e)}일)`
+}
+
+// 날짜별 인덱스: 다일 이벤트는 [date..endDate] 모든 날짜에 포함.
 const eventsByDay = computed(() => {
   const m = new Map<string, EventEntity[]>()
   for (const e of eventList.value) {
-    const arr = m.get(e.date) ?? []
-    arr.push(e)
-    m.set(e.date, arr)
+    const start = new Date(e.date + 'T00:00:00')
+    const end = new Date(endOf(e) + 'T00:00:00')
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = makeDateISO(d.getFullYear(), d.getMonth(), d.getDate())
+      const arr = m.get(key) ?? []
+      arr.push(e)
+      m.set(key, arr)
+    }
   }
-  for (const arr of m.values()) arr.sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
+  // 같은 날 안에서: 다일이 위, 그 다음 시간 빠른 순.
+  for (const arr of m.values()) arr.sort((a, b) => {
+    if (isMultiDay(a) !== isMultiDay(b)) return isMultiDay(a) ? -1 : 1
+    return (a.time ?? '').localeCompare(b.time ?? '')
+  })
   return m
 })
 const selectedEvents = computed(() => eventsByDay.value.get(selectedDate.value) ?? [])
@@ -103,14 +130,18 @@ function pickDay(cell: { date: string; inMonth: boolean }) {
 // ── 동작 ──
 function addEvent() {
   if (!newTitle.value.trim() || !props.room.canEdit) return
+  // endDate 가 시작일보다 빠르면 무시(단일일로 처리).
+  const end = newEndDate.value && newEndDate.value > selectedDate.value ? newEndDate.value : undefined
   const ev: EventEntity = {
     id: newId('ev'),
     authorId: id.userId, authorName: space.nickname, colorKey: space.colorKey,
-    title: newTitle.value.trim(), date: selectedDate.value, time: newTime.value || undefined,
+    title: newTitle.value.trim(), date: selectedDate.value,
+    endDate: end,
+    time: newTime.value || undefined,
     updatedBy: id.userId, updatedByName: space.nickname, updatedAt: Date.now(),
   }
   props.room.upsertEvent(ev)
-  newTitle.value = ''; newTime.value = ''
+  newTitle.value = ''; newTime.value = ''; newEndDate.value = ''
   titleInputRef.value?.focus()
 }
 
@@ -180,18 +211,27 @@ const weekdays = ['일', '월', '화', '수', '목', '금', '토']
           <input ref="titleInputRef" v-model="newTitle" class="field"
                  placeholder="이 날에 일정 추가" maxlength="60" @keyup.enter="addEvent" />
           <div class="row">
-            <input v-model="newTime" type="time" class="field time" />
+            <input v-model="newTime" type="time" class="field time" title="시간(선택)" />
+            <input v-model="newEndDate" type="date" class="field date" :min="selectedDate" title="종료일(선택 — 비우면 단일일)" />
             <button class="btn btn-primary" :disabled="!newTitle.trim()" @click="addEvent">추가</button>
           </div>
+          <p v-if="newEndDate && newEndDate > selectedDate" class="range-hint">
+            {{ selectedDate.slice(5).replace('-', '/') }} ~ {{ newEndDate.slice(5).replace('-', '/') }} 기간 일정
+          </p>
         </div>
 
         <ul v-if="selectedEvents.length" class="items">
           <li v-for="e in selectedEvents" :key="e.id" class="item"
+              :class="{ multi: isMultiDay(e) }"
               :style="{ '--c': colorByKey(e.colorKey).base, '--cs': colorByKey(e.colorKey).soft }">
             <span class="dot"></span>
             <div class="meta">
               <b class="t">{{ e.title }}</b>
-              <span class="sub"><template v-if="e.time">{{ e.time }} · </template>{{ e.authorName }}</span>
+              <span class="sub">
+                <template v-if="isMultiDay(e)">📅 {{ dateRangeLabel(e) }}<template v-if="e.time"> · {{ e.time }}</template></template>
+                <template v-else-if="e.time">{{ e.time }}</template>
+                · {{ e.authorName }}
+              </span>
             </div>
             <button v-if="canDelete(e)" class="del" @click="del(e)" title="삭제">
               <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -258,7 +298,10 @@ const weekdays = ['일', '월', '화', '수', '목', '금', '토']
 .quick-add .field { padding: 10px 12px; font-size: 14px; background: var(--surface); }
 .quick-add .row { display: flex; gap: 8px; }
 .quick-add .row .field.time { flex: 1; min-width: 0; }
+.quick-add .row .field.date { flex: 1.2; min-width: 0; }
 .quick-add .row .btn { padding: 10px 16px; font-size: 13px; flex: none; }
+.range-hint { margin: 6px 2px 0; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 12px; color: var(--brand-ink); }
+.item.multi { background: linear-gradient(90deg, var(--cs) 0%, var(--surface) 35%); }
 
 .items { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line-soft); border-left: 4px solid var(--c); border-radius: var(--r); }

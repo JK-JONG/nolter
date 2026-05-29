@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import { newSyncCode, normalizeCode, sha256Hex } from '@/lib/id'
 import { colorByKey, type UserColorKey } from '@/lib/colors'
 import { supabase } from '@/lib/supabase'
+import { useIdentity } from '@/stores/identity'
 
 export interface RoomEntry { roomCode: string; title: string }
 
@@ -22,6 +23,7 @@ function readSessionAuth(): string {
 }
 
 export const useSpace = defineStore('space', () => {
+  const identity = useIdentity()
   const syncCode = useLocalStorage<string>('nolter.syncCode', '')
   const nickname = useLocalStorage<string>('nolter.nickname', '')
   // password = 평문(같은 기기 admin 비교용). passwordHash = vault 에 저장될 본인 인증 hash.
@@ -127,7 +129,10 @@ export const useSpace = defineStore('space', () => {
   async function pull() {
     if (!supabase || !hasSync.value) return
     try {
-      const { data } = await supabase.rpc('space_pull', { p_code: syncCode.value })
+      const { data } = await supabase.rpc('space_pull', {
+        p_code: syncCode.value,
+        p_user_id: identity.userId,
+      })
       const row = Array.isArray(data) ? data[0] : data
       if (row?.data) {
         const d = row.data as {
@@ -137,11 +142,14 @@ export const useSpace = defineStore('space', () => {
         const hadLocalProfile = nickname.value.trim().length > 0
         if (d.profile?.nickname && !hadLocalProfile) nickname.value = d.profile.nickname
         if (d.profile?.colorKey && !hadLocalProfile) colorKey.value = d.profile.colorKey
-        // vault 의 hash 가 정본 — 다른 기기에서 들어온 경우에도 검증할 수 있게 받음.
+        // vault 의 hash 가 정본 — 같은 기기에서 다시 들어온 경우에도 검증할 수 있게 받음.
         if (d.profile?.passwordHash) passwordHash.value = d.profile.passwordHash
         if (Array.isArray(d.rooms)) mergeRooms(d.rooms)
         version.value = row.version ?? 0
       } else {
+        // 이 기기/이 게이트 조합으로 등록된 적이 없음 → 가입 모드로 들어갈 수 있게 로컬 정리.
+        // (예전 단일-슬롯 모델에서 친구의 admin 해시가 박혀버리는 버그 방지.)
+        passwordHash.value = ''
         version.value = 0
       }
     } catch { /* 오프라인/미설정 → 로컬만 */ }
@@ -164,7 +172,10 @@ export const useSpace = defineStore('space', () => {
     }
     try {
       const { data } = await supabase.rpc('space_push', {
-        p_code: syncCode.value, p_data: payload, p_expected_version: version.value,
+        p_code: syncCode.value,
+        p_user_id: identity.userId,
+        p_data: payload,
+        p_expected_version: version.value,
       })
       const row = Array.isArray(data) ? data[0] : data
       if (row?.conflict && !retry) {

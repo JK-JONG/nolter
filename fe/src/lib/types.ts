@@ -1,7 +1,7 @@
 import type { UserColorKey } from './colors'
 
 export type Tool = 'pen' | 'highlighter' | 'sticky' | 'eraser' | 'hand'
-export type TabKey = 'canvas' | 'memo' | 'calendar'
+export type TabKey = 'canvas' | 'memo' | 'calendar' | 'list'
 
 /** 그린 획 — append-only(한 번 그려지면 불변, 삭제만 가능). */
 export interface Stroke {
@@ -28,15 +28,29 @@ export interface Sticky {
   updatedAt: number
 }
 
-/** 공유 캘린더 이벤트. */
+/** 공유 캘린더 이벤트. endDate 가 있으면 [date..endDate] 다일 이벤트로 렌더. */
 export interface EventEntity {
   id: string
   authorId: string
   authorName: string
   colorKey: UserColorKey
   title: string
-  date: string         // YYYY-MM-DD
+  date: string         // YYYY-MM-DD (시작일)
+  endDate?: string     // YYYY-MM-DD (종료일, 포함). 미지정/같으면 단일일 이벤트.
   time?: string        // HH:mm 선택
+  updatedBy: string
+  updatedByName: string
+  updatedAt: number
+}
+
+/** 공유 리스트 항목(체크리스트). */
+export interface ListItem {
+  id: string
+  authorId: string
+  authorName: string
+  colorKey: UserColorKey
+  text: string
+  done: boolean
   updatedBy: string
   updatedByName: string
   updatedAt: number
@@ -62,6 +76,7 @@ export type Op =
   | { t: 'stroke:add';  sender: string; stroke: Stroke }
   | { t: 'sticky:upsert'; sender: string; sticky: Sticky }
   | { t: 'event:upsert';  sender: string; event: EventEntity }
+  | { t: 'list:upsert';   sender: string; item: ListItem }
   | { t: 'note:set';    sender: string; text: string; updatedBy: string; updatedByName: string; updatedAt: number }
   | { t: 'config:set';  sender: string; lockAll: boolean; lockedUsers: string[] }
   | { t: 'delete'; sender: string; id: string }

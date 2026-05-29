@@ -5,7 +5,7 @@ import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { sha256Hex, normalizeCode } from '@/lib/id'
 import { useIdentity } from '@/stores/identity'
 import { useSpace } from '@/stores/space'
-import type { Stroke, Sticky, EventEntity, Peer, Cursor, Op, Tool, TabKey } from '@/lib/types'
+import type { Stroke, Sticky, EventEntity, ListItem, Peer, Cursor, Op, Tool, TabKey } from '@/lib/types'
 
 // 한 방(room) 세션의 모든 것: 영속(strokes/stickies/events/memo/config) + 실시간(Presence/Broadcast).
 // 데이터 흐름(레이스 방지): ① 채널 subscribe → ② RPC room_pull → ③ pull 결과를 기존 상태에 union 병합.
@@ -25,6 +25,7 @@ export function useRoom(rawCode: string) {
   const strokes = shallowRef<Stroke[]>([])
   const stickies = reactive(new Map<string, Sticky>())
   const events = reactive(new Map<string, EventEntity>())
+  const listItems = reactive(new Map<string, ListItem>())
   const memoText = ref('')
   const memoUpdatedAt = ref(0)
   const memoUpdatedByName = ref('')
@@ -61,6 +62,7 @@ export function useRoom(rawCode: string) {
         strokes: strokes.value,
         stickies: [...stickies.values()],
         events: [...events.values()],
+        listItems: [...listItems.values()],
         memo: { text: memoText.value, updatedAt: memoUpdatedAt.value, updatedByName: memoUpdatedByName.value },
         config: { lockAll: lockAll.value, lockedUsers: [...lockedUsers] },
       }))
@@ -75,6 +77,7 @@ export function useRoom(rawCode: string) {
       if (Array.isArray(d.strokes)) strokes.value = d.strokes
       if (Array.isArray(d.stickies)) for (const s of d.stickies) stickies.set(s.id, s)
       if (Array.isArray(d.events)) for (const e of d.events) events.set(e.id, e)
+      if (Array.isArray(d.listItems)) for (const li of d.listItems) listItems.set(li.id, li)
       if (d.memo) {
         memoText.value = d.memo.text ?? ''
         memoUpdatedAt.value = d.memo.updatedAt ?? 0
@@ -100,6 +103,10 @@ export function useRoom(rawCode: string) {
     const cur = events.get(e.id)
     if (!cur || e.updatedAt >= cur.updatedAt) events.set(e.id, e)
   }
+  function mergeListItem(li: ListItem) {
+    const cur = listItems.get(li.id)
+    if (!cur || li.updatedAt >= cur.updatedAt) listItems.set(li.id, li)
+  }
   function applyMemo(text: string, updatedAt: number, updatedByName: string) {
     if (updatedAt >= memoUpdatedAt.value) {
       memoText.value = text
@@ -116,6 +123,7 @@ export function useRoom(rawCode: string) {
     if (strokes.value.some(x => x.id === eid)) strokes.value = strokes.value.filter(x => x.id !== eid)
     stickies.delete(eid)
     events.delete(eid)
+    listItems.delete(eid)
   }
 
   // ── 들어오는 op/cursor 적용(self:false 라 자기 것은 안 옴) ──
@@ -125,6 +133,7 @@ export function useRoom(rawCode: string) {
       case 'stroke:add':    liveStrokes.delete(op.stroke.authorId); mergeStroke(op.stroke); persistLocal(); break
       case 'sticky:upsert': mergeSticky(op.sticky); persistLocal(); break
       case 'event:upsert':  mergeEvent(op.event); persistLocal(); break
+      case 'list:upsert':   mergeListItem(op.item); persistLocal(); break
       case 'note:set':      applyMemo(op.text, op.updatedAt, op.updatedByName); persistLocal(); break
       case 'config:set':    applyConfig({ lockAll: op.lockAll, lockedUsers: op.lockedUsers }); persistLocal(); break
       case 'delete':        removeEntity(op.id); persistLocal(); break
@@ -193,6 +202,7 @@ export function useRoom(rawCode: string) {
         if (e.kind === 'stroke') mergeStroke(e.data as Stroke)
         else if (e.kind === 'sticky') mergeSticky(e.data as Sticky)
         else if (e.kind === 'event') mergeEvent(e.data as EventEntity)
+        else if (e.kind === 'list') mergeListItem(e.data as ListItem)
         else if (e.kind === 'note' && e.id === MEMO_ID) {
           const d = e.data as { text: string; updatedAt: number; updatedByName: string }
           applyMemo(d.text ?? '', d.updatedAt ?? 0, d.updatedByName ?? '')
@@ -266,6 +276,12 @@ export function useRoom(rawCode: string) {
     channel?.send({ type: 'broadcast', event: 'op', payload: { t: 'event:upsert', sender: id.userId, event } })
     rpcUpsert('event', event)
   }
+  function upsertListItem(item: ListItem) {
+    if (!canEdit.value) return
+    listItems.set(item.id, item); persistLocal()
+    channel?.send({ type: 'broadcast', event: 'op', payload: { t: 'list:upsert', sender: id.userId, item } })
+    rpcUpsert('list', item)
+  }
   function deleteEntity(eid: string) {
     if (!canEdit.value) return
     removeEntity(eid); persistLocal()
@@ -322,11 +338,11 @@ export function useRoom(rawCode: string) {
   }
 
   return reactive({
-    title, strokes, stickies, events, memoText, memoUpdatedByName,
+    title, strokes, stickies, events, listItems, memoText, memoUpdatedByName,
     peers, cursors, liveStrokes, mode, connected,
     lockAll, lockedUsers, isHost, canEdit,
     sendCursor, sendLiveStroke, setStatus, setTab, setEditing,
-    commitStroke, upsertSticky, upsertEvent, deleteEntity, clearCanvas, setTitle, setMemo,
+    commitStroke, upsertSticky, upsertEvent, upsertListItem, deleteEntity, clearCanvas, setTitle, setMemo,
     setLockAll, toggleUserLock,
   })
 }

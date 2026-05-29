@@ -4,6 +4,10 @@ import { useRouter } from 'vue-router'
 import { useSpace } from '@/stores/space'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { formatCode } from '@/lib/id'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import { useConfirm } from '@/composables/useConfirm'
+
+const { state: confirmState, ask: askConfirm, resolve: resolveConfirm } = useConfirm()
 
 const router = useRouter()
 const space = useSpace()
@@ -48,7 +52,13 @@ async function load() {
 async function deleteRoom(row: RoomRow) {
   if (!supabase) return
   const label = row.title || row.room_code || row.code_hash.slice(0, 8)
-  if (!confirm(`방 "${label}" 을(를) 삭제할까요? 내부 엔티티(획·스티키 등)도 모두 사라집니다.`)) return
+  const ok = await askConfirm({
+    title: '방 삭제',
+    message: `방 "${label}" 을(를) 삭제할까요?\n내부 엔티티(획·스티키 등)도 모두 사라집니다.`,
+    confirmLabel: '삭제',
+    tone: 'danger',
+  })
+  if (!ok) return
   busy.value = row.code_hash
   try {
     const { error: e } = await supabase.rpc('admin_delete_room', { p_code_hash: row.code_hash })
@@ -64,7 +74,13 @@ async function deleteRoom(row: RoomRow) {
 async function deleteMember(row: MemberRow) {
   if (!supabase) return
   const label = row.nickname || row.code_hash.slice(0, 8)
-  if (!confirm(`멤버 "${label}" 의 동기화 공간을 삭제할까요? 본인 기기에서는 닉네임/방 목록이 유지되지만, 서버 동기화가 끊깁니다.`)) return
+  const ok = await askConfirm({
+    title: '멤버 삭제',
+    message: `멤버 "${label}" 의 동기화 공간을 삭제할까요?\n본인 기기에서는 닉네임/방 목록이 유지되지만, 서버 동기화가 끊깁니다.`,
+    confirmLabel: '삭제',
+    tone: 'danger',
+  })
+  if (!ok) return
   busy.value = row.code_hash
   try {
     const { error: e } = await supabase.rpc('admin_delete_member', { p_code_hash: row.code_hash })
@@ -166,6 +182,17 @@ onMounted(load)
         </table>
       </section>
     </div>
+
+    <ConfirmModal
+      :open="confirmState.open"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :confirm-label="confirmState.confirmLabel"
+      :cancel-label="confirmState.cancelLabel"
+      :tone="confirmState.tone"
+      @confirm="resolveConfirm(true)"
+      @cancel="resolveConfirm(false)"
+    />
   </div>
 </template>
 

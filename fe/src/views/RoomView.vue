@@ -11,6 +11,9 @@ import type { Tool, TabKey, Stroke, Sticky, Peer } from '@/lib/types'
 import DrawCanvas from '@/components/DrawCanvas.vue'
 import CalendarTab from '@/components/CalendarTab.vue'
 import MemoTab from '@/components/MemoTab.vue'
+import ListTab from '@/components/ListTab.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps<{ code: string }>()
 const router = useRouter()
@@ -83,12 +86,18 @@ async function invite() {
 
 function onTitleInput(e: Event) { room.setTitle((e.target as HTMLElement).innerText.trim().slice(0, 80)) }
 
-function confirmClearCanvas() {
+const { state: confirmState, ask: askConfirm, resolve: resolveConfirm } = useConfirm()
+
+async function confirmClearCanvas() {
   const n = room.strokes.length + room.stickies.size
   if (n === 0) return
-  if (confirm(`캔버스의 획·스티키 ${n}개를 모두 삭제할까요? 되돌릴 수 없어요.`)) {
-    room.clearCanvas()
-  }
+  const ok = await askConfirm({
+    title: '캔버스 초기화',
+    message: `캔버스의 획·스티키 ${n}개를 모두 삭제할까요?\n되돌릴 수 없어요.`,
+    confirmLabel: '모두 삭제',
+    tone: 'danger',
+  })
+  if (ok) room.clearCanvas()
 }
 
 const tools: { key: Tool; label: string }[] = [
@@ -117,6 +126,9 @@ function avatarText(name: string) { return (name || '?').trim().charAt(0) }
         </button>
         <button :class="{ on: tab === 'memo' }" @click="changeTab('memo')">
           <svg viewBox="0 0 24 24" class="ti"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg> 메모
+        </button>
+        <button :class="{ on: tab === 'list' }" @click="changeTab('list')">
+          <svg viewBox="0 0 24 24" class="ti"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M5 6l-.01 0M5 12l-.01 0M5 18l-.01 0"/></svg> 리스트
         </button>
         <button :class="{ on: tab === 'calendar' }" @click="changeTab('calendar')">
           <svg viewBox="0 0 24 24" class="ti"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg> 캘린더
@@ -211,10 +223,22 @@ function avatarText(name: string) { return (name || '?').trim().charAt(0) }
         <div class="zoom"><button aria-label="축소">−</button><span>100%</span><button aria-label="확대">+</button></div>
       </main>
 
-      <!-- 메모 / 캘린더 -->
+      <!-- 메모 / 리스트 / 캘린더 -->
       <main v-show="tab === 'memo'" class="stage tab-stage"><MemoTab :room="room" /></main>
+      <main v-show="tab === 'list'" class="stage tab-stage"><ListTab :room="room" /></main>
       <main v-show="tab === 'calendar'" class="stage tab-stage"><CalendarTab :room="room" /></main>
     </div>
+
+    <ConfirmModal
+      :open="confirmState.open"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :confirm-label="confirmState.confirmLabel"
+      :cancel-label="confirmState.cancelLabel"
+      :tone="confirmState.tone"
+      @confirm="resolveConfirm(true)"
+      @cancel="resolveConfirm(false)"
+    />
   </div>
 </template>
 
