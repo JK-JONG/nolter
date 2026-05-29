@@ -30,24 +30,36 @@ async function submitSync() {
   try {
     const ok = await space.enter(syncInput.value)
     if (!ok) { error.value = '동기화 코드가 올바르지 않아요 (12자 이상).'; return }
-    // 서버에서 프로필이 복구됐다면 바로 로비로, 아니면 프로필 단계로.
-    if (space.hasProfile) router.push({ name: 'lobby' })
-    else step.value = 'profile'
+    // 항상 프로필 단계로 — 닉네임/비번 검증을 매번 거치게.
+    step.value = 'profile'
   } finally { busy.value = false }
 }
 
 // ── Step 2 (profile) ──
-const nickname = ref(space.nickname)
-const password = ref(space.password)
+const nicknameInput = ref(space.nickname)
+const pwInput = ref('')
+const pwConfirmInput = ref('')
 const colorKey = ref<UserColorKey>(space.colorKey)
+
+// 가입 모드(vault 에 hash 없음) vs 로그인 모드(hash 있음)
+const isCreating = computed(() => !space.passwordHash)
+
 const profileValid = computed(() =>
-  space.isValidNickname(nickname.value) && space.isValidPassword(password.value)
+  space.isValidNickname(nicknameInput.value) &&
+  space.isValidPassword(pwInput.value) &&
+  (!isCreating.value || pwInput.value === pwConfirmInput.value)
 )
 
-function submitProfile() {
-  if (!profileValid.value) return
-  space.setProfile(nickname.value, password.value, colorKey.value)
-  router.push({ name: 'lobby' })
+async function submitProfile() {
+  if (!profileValid.value || busy.value) return
+  busy.value = true; error.value = ''
+  try {
+    const res = await space.login(nicknameInput.value, pwInput.value, colorKey.value, pwConfirmInput.value)
+    if (!res.ok) { error.value = res.reason ?? '입력값을 확인해주세요.'; return }
+    pwInput.value = ''
+    pwConfirmInput.value = ''
+    router.push({ name: 'lobby' })
+  } finally { busy.value = false }
 }
 
 function backToSync() {
@@ -96,20 +108,30 @@ function backToSync() {
           <button type="button" class="back" @click="backToSync" aria-label="동기화 코드 단계로 돌아가기">←</button>
           <div class="steptag">2 / 2 · 프로필</div>
         </div>
-        <h2 class="title">나를 소개해주세요</h2>
-        <p class="lead">친구들에게 보일 닉네임과 색을 골라요. 커서·획·스티키 전부 이 색으로 표시돼요.</p>
+        <h2 class="title">{{ isCreating ? '닉네임을 만들어주세요' : '로그인' }}</h2>
+        <p class="lead">
+          <template v-if="isCreating">처음 들어오는 공간이에요. 닉네임과 비밀번호를 등록해주세요.</template>
+          <template v-else>등록된 비밀번호를 입력해주세요.</template>
+        </p>
 
         <div>
           <label class="label" for="nick">닉네임</label>
-          <input id="nick" v-model="nickname" class="field" placeholder="이름을 적어주세요" maxlength="16" autocomplete="off" autofocus />
+          <input id="nick" v-model="nicknameInput" class="field" placeholder="이름을 적어주세요" maxlength="16" autocomplete="off" autofocus />
         </div>
 
         <div>
           <label class="label" for="pw">비밀번호 <span class="hint">4자 이상</span></label>
-          <input id="pw" v-model="password" type="password" class="field" placeholder="••••" maxlength="64" autocomplete="new-password" />
+          <input id="pw" v-model="pwInput" type="password" class="field" placeholder="••••"
+                 maxlength="64" :autocomplete="isCreating ? 'new-password' : 'current-password'" />
         </div>
 
-        <div>
+        <div v-if="isCreating">
+          <label class="label" for="pw2">비밀번호 확인</label>
+          <input id="pw2" v-model="pwConfirmInput" type="password" class="field" placeholder="••••"
+                 maxlength="64" autocomplete="new-password" />
+        </div>
+
+        <div v-if="isCreating">
           <label class="label">내 색 고르기 <span class="hint">10가지 중 하나</span></label>
           <div class="colors">
             <button
@@ -120,10 +142,11 @@ function backToSync() {
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary enter" :disabled="!profileValid">
-          로비로 들어가기 →
+        <p v-if="error" class="error">{{ error }}</p>
+
+        <button type="submit" class="btn btn-primary enter" :disabled="!profileValid || busy">
+          {{ busy ? '확인 중…' : (isCreating ? '닉네임 생성' : '로그인') }} →
         </button>
-        <p class="footnote">언제든 로비에서 동기화 코드를 확인·복사할 수 있어요.</p>
       </form>
     </div>
   </div>
