@@ -213,6 +213,8 @@ export function useRoom(rawCode: string) {
     })
     channel
       .on('presence', { event: 'sync' }, syncPresence)
+      .on('presence', { event: 'leave' }, syncPresence)
+      .on('presence', { event: 'join' }, syncPresence)
       .on('broadcast', { event: 'cursor' }, ({ payload }) => onCursor(payload))
       .on('broadcast', { event: 'op' }, ({ payload }) => onOp(payload as Op))
       .subscribe(async (status) => {
@@ -270,6 +272,20 @@ export function useRoom(rawCode: string) {
     channel?.send({ type: 'broadcast', event: 'op', payload: { t: 'delete', sender: id.userId, id: eid } })
     rpcDelete(eid)
   }
+  // 캔버스 전체 초기화 — 모든 stroke + sticky 삭제 (event/memo/config 는 보존).
+  function clearCanvas() {
+    if (!canEdit.value) return
+    const ids: string[] = [
+      ...strokes.value.map(s => s.id),
+      ...[...stickies.keys()],
+    ]
+    for (const eid of ids) {
+      removeEntity(eid)
+      channel?.send({ type: 'broadcast', event: 'op', payload: { t: 'delete', sender: id.userId, id: eid } })
+      rpcDelete(eid)
+    }
+    persistLocal()
+  }
   function setTitle(t: string) {
     if (!canEdit.value) return
     title.value = t; persistLocal()
@@ -310,7 +326,7 @@ export function useRoom(rawCode: string) {
     peers, cursors, liveStrokes, mode, connected,
     lockAll, lockedUsers, isHost, canEdit,
     sendCursor, sendLiveStroke, setStatus, setTab, setEditing,
-    commitStroke, upsertSticky, upsertEvent, deleteEntity, setTitle, setMemo,
+    commitStroke, upsertSticky, upsertEvent, deleteEntity, clearCanvas, setTitle, setMemo,
     setLockAll, toggleUserLock,
   })
 }

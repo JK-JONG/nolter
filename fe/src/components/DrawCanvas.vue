@@ -29,9 +29,33 @@ const surface = ref<HTMLDivElement | null>(null)
 const myStroke = ref<Stroke | null>(null)   // 내가 그리는 중인 획(로컬 렌더)
 const drawing = ref(false)
 
+// 지우개 — 마우스 따라다니는 큰 ring + 충돌 검출.
+const ERASE_R = 26
+const eraserPos = ref<{ x: number; y: number } | null>(null)
+
 function pt(e: PointerEvent): [number, number] {
   const r = surface.value!.getBoundingClientRect()
   return [Math.round(e.clientX - r.left), Math.round(e.clientY - r.top)]
+}
+function distSegSq(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
+  const dx = x2 - x1, dy = y2 - y1
+  const lenSq = dx*dx + dy*dy
+  let t = 0
+  if (lenSq > 0) t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq))
+  const qx = x1 + t * dx, qy = y1 + t * dy
+  const ex = px - qx, ey = py - qy
+  return ex*ex + ey*ey
+}
+function eraseNear(x: number, y: number) {
+  const r2 = ERASE_R * ERASE_R
+  for (const s of props.strokes) {
+    const pts = s.points
+    let hit = false
+    for (let i = 0; i + 3 < pts.length; i += 2) {
+      if (distSegSq(x, y, pts[i], pts[i+1], pts[i+2], pts[i+3]) <= r2) { hit = true; break }
+    }
+    if (hit) emit('del', s.id)
+  }
 }
 function widthFor(tool: 'pen' | 'highlighter') { return tool === 'highlighter' ? 16 : 3.5 }
 function pointsStr(p: number[]) {
@@ -53,6 +77,12 @@ function onDown(e: PointerEvent) {
     emit('stickyAdd', s)
     return
   }
+  if (props.tool === 'eraser') {
+    surface.value?.setPointerCapture(e.pointerId)
+    drawing.value = true  // 드래그 중 계속 지움
+    eraseNear(x, y)
+    return
+  }
   if (props.tool === 'pen' || props.tool === 'highlighter') {
     surface.value?.setPointerCapture(e.pointerId)
     drawing.value = true
@@ -65,6 +95,11 @@ function onDown(e: PointerEvent) {
 function onMove(e: PointerEvent) {
   const [x, y] = pt(e)
   emit('cursor', x, y)
+  if (props.tool === 'eraser') {
+    eraserPos.value = { x, y }
+    if (drawing.value) eraseNear(x, y)
+    return
+  }
   if (drawing.value && myStroke.value) {
     myStroke.value.points.push(x, y)
     emit('drawMove', myStroke.value)
@@ -77,10 +112,14 @@ function onUp() {
   drawing.value = false
   myStroke.value = null
 }
+function onLeave() {
+  onUp()
+  eraserPos.value = null
+}
 
 const cursorStyle = computed(() => {
   if (props.tool === 'hand') return 'grab'
-  if (props.tool === 'eraser') return 'pointer'
+  if (props.tool === 'eraser') return 'none'  // 자체 큰 ring cursor 사용
   return 'crosshair'
 })
 
@@ -121,8 +160,15 @@ function labelPos(s: Stroke) {
   <div
     ref="surface" class="surface bg-dots"
     :style="{ cursor: cursorStyle }"
-    @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp" @pointerleave="onUp"
+    @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp" @pointerleave="onLeave"
   >
+    <!-- 지우개 cursor (큰 ring) — tool='eraser' 일 때만 -->
+    <div
+      v-if="tool === 'eraser' && eraserPos"
+      class="eraser-cursor"
+      :style="{ left: eraserPos.x + 'px', top: eraserPos.y + 'px' }"
+      aria-hidden="true"
+    ></div>
     <!-- 확정 + 내가 그리는 중 + 남이 그리는 중: 한 SVG 레이어 -->
     <svg class="ink" width="100%" height="100%">
       <polyline
@@ -217,5 +263,14 @@ function labelPos(s: Stroke) {
   position: absolute; left: 16px; top: 16px; white-space: nowrap;
   font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 12.5px; color: #fff;
   padding: 3px 10px; border-radius: var(--r-pill); box-shadow: var(--sh-sm);
+}
+
+/* 지우개 ring — 마우스 위치 중심으로 큰 원 */
+.eraser-cursor {
+  position: absolute; width: 52px; height: 52px;
+  border: 2px solid var(--ink); background: rgba(255,255,255,.35);
+  border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%); z-index: 50;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.1), inset 0 0 0 2px rgba(255,255,255,.6);
 }
 </style>

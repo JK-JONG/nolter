@@ -62,6 +62,14 @@ async function invite() {
 
 function onTitleInput(e: Event) { room.setTitle((e.target as HTMLElement).innerText.trim().slice(0, 80)) }
 
+function confirmClearCanvas() {
+  const n = room.strokes.length + room.stickies.size
+  if (n === 0) return
+  if (confirm(`캔버스의 획·스티키 ${n}개를 모두 삭제할까요? 되돌릴 수 없어요.`)) {
+    room.clearCanvas()
+  }
+}
+
 const tools: { key: Tool; label: string }[] = [
   { key: 'pen', label: '펜' }, { key: 'highlighter', label: '형광펜' },
   { key: 'sticky', label: '스티키 노트' }, { key: 'eraser', label: '지우개' }, { key: 'hand', label: '이동' },
@@ -143,6 +151,15 @@ function avatarText(name: string) { return (name || '?').trim().charAt(0) }
         </button>
         <div class="sep"></div>
         <div class="mycolor" :style="{ background: myColor.base }" :title="'내 색 · ' + myColor.name"></div>
+        <div class="sep"></div>
+        <button
+          v-if="room.canEdit"
+          class="tool clear-all" type="button"
+          title="캔버스 전체 초기화 (획·스티키 모두 삭제)"
+          @click="confirmClearCanvas"
+        >
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
       </aside>
 
       <!-- 캔버스 -->
@@ -224,6 +241,9 @@ function avatarText(name: string) { return (name || '?').trim().charAt(0) }
 
 .body { flex: 1; display: flex; min-height: 0; position: relative; }
 .dock { width: 60px; flex: none; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; z-index: 20; }
+.tool.clear-all { color: #C2386F; }
+.tool.clear-all:hover { background: #FCE7E7; color: #C2386F; }
+
 .tool { width: 42px; height: 42px; border-radius: var(--r-sm); border: none; background: transparent; cursor: pointer; display: grid; place-items: center; color: var(--ink-soft); transition: all .15s var(--ease); }
 .tool svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tool:hover { background: var(--surface-2); transform: translateY(-1px); }
