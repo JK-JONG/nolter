@@ -104,22 +104,25 @@ function dismissCreated() { createdCode.value = ''; createdTitle.value = '' }
         </div>
       </header>
 
-      <!-- 좌상단 액션 — admin 전용. 한 zone 통합: 코드 입력 → 합류, 빈 채로 자동 생성 → 새 방 -->
-      <div v-if="space.isAdmin" class="topzone">
+      <!-- 좌상단 액션: 합류는 모두에게, 새 방 생성은 admin 만. -->
+      <div class="topzone">
         <div class="zone invite-zone">
           <label class="zone-label" for="invite">
             <svg viewBox="0 0 24 24" class="ti"><path d="M9 15l6-6M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1"/></svg>
-            방 코드 <span class="admin-only">ADMIN</span>
+            초대 코드로 합류
           </label>
           <div class="zone-row">
             <input id="invite" v-model="joinInput" class="field code-field"
-                   placeholder="ABCD-EFGH (또는 비워두기)" maxlength="12" @keyup.enter="joinByInvite" />
+                   placeholder="ABCD-EFGH" maxlength="12" @keyup.enter="joinByInvite" />
             <button class="btn btn-primary" :disabled="busy || !joinInput.trim()" @click="joinByInvite">합류</button>
-            <button class="btn btn-ghost" :disabled="busy" @click="createRoom" title="새 방을 만들고 코드를 자동 생성">
-              + 자동 생성
+            <button v-if="space.isAdmin" class="btn btn-ghost" :disabled="busy" @click="createRoom" title="새 방을 만들고 코드를 자동 생성">
+              + 새 방 만들기
             </button>
           </div>
-          <p class="zone-hint">코드를 입력하면 그 방에 합류, 비워두고 <b>자동 생성</b>을 누르면 새 방이 만들어집니다.</p>
+          <p class="zone-hint">
+            친구가 알려준 초대 코드를 입력하면 그 방에 합류됩니다.
+            <template v-if="space.isAdmin"><br><b>새 방 만들기</b>는 관리자만 사용할 수 있어요.</template>
+          </p>
         </div>
       </div>
 
